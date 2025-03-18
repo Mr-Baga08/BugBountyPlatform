@@ -62,12 +62,14 @@ app.use(express.json());
 app.use(bodyParser.json());
 
 // Simple CORS configuration - during development, allow all origins
-// app.use(cors({
-//   origin: '*',
-//   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-//   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-//   credentials: true
-// }));
+app.use(cors({
+  origin: ['http://lbug-bounty-platform-rmlo.vercel.app',
+'http://lbug-bounty-platform-rmlo-git-main-mr-baga08s-projects.vercel.app',
+'http://lbug-bounty-platform-rmlo-ok80c5vm1-mr-baga08s-projects.vercel.app']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  credentials: true
+}));
 
 // Connect to database
 connectDB();
