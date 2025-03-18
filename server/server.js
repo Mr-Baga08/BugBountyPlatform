@@ -184,12 +184,7 @@ const allowedOrigins = [
 ];
 
 // Use CORS Middleware
-app.use(cors({
-  origin: allowedOrigins,
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
-  credentials: true
-}));
+
 
 // Middleware
 app.use(express.json());
