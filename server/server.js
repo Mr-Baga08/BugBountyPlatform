@@ -203,14 +203,15 @@ connectDB();
 
 
 // Define all your allowed origins
-const allowedOrigins = [
-  process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(",") : [],
-  "https://bug-bounty-platform-rmlo.vercel.app",
-  "https://bug-bounty-platform.vercel.app",
-  "https://bug-bounty-platform-rmlo-git-main-mr-baga08s-projects.vercel.app",
-  "https://bug-bounty-platform-rmlo-kdolidgrp-mr-baga08s-projects.vercel.app",
-  "http://localhost:5173"
-].flat();
+// const allowedOrigins = [
+//   process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(",") : [],
+//   "https://bug-bounty-platform-rmlo.vercel.app",
+//   "https://bug-bounty-platform.vercel.app",
+//   "https://bug-bounty-platform-rmlo-git-main-mr-baga08s-projects.vercel.app",
+//   "https://bug-bounty-platform-rmlo-kdolidgrp-mr-baga08s-projects.vercel.app",
+//   "http://localhost:5173"
+// ].flat();
+const allowedOrigins = ['*'];
 
 app.use(cors({
   origin: function (origin, callback) {
