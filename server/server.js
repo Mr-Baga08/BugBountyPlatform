@@ -19,7 +19,27 @@ const taskImportRoutes = require("./routes/taskImportRoutes");
 dotenv.config();
 
 // Initialize Express
+const express = require('express');
 const app = express();
+
+// Define trusted origins
+const trustedOrigins = [
+  'https://bug-bounty-platform-rmlo.vercel.app',
+   'https://bug-bounty-platform-rmlo-git-main-mr-baga08s-projects.vercel.app',
+   'https://bug-bounty-platform-rmlo-kdolidgrp-mr-baga08s-projects.vercel.app',
+];
+
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (trustedOrigins.includes(origin)) {
+    // If the origin is in the trusted list, allow it
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    // Add other headers as needed
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  }
+  next();
+});
 
 // // Add CORS headers to all responses
 // // CORS configuration - SIMPLE VERSION
@@ -58,20 +78,20 @@ const app = express();
 // }));
 
 // Use JSON middleware
-app.use(express.json());
-app.use(bodyParser.json());
+// app.use(express.json());
+// app.use(bodyParser.json());
 
-// Simple CORS configuration - during development, allow all origins
-app.use(cors({
-  origin: ['https://bug-bounty-platform-rmlo.vercel.app',
-           'https://bug-bounty-platform-rmlo-git-main-mr-baga08s-projects.vercel.app',
-           'https://bug-bounty-platform-rmlo-ok80c5vm1-mr-baga08s-projects.vercel.app'],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  credentials: true
-}));
+// // Simple CORS configuration - during development, allow all origins
+// app.use(cors({
+//   origin: ['https://bug-bounty-platform-rmlo.vercel.app',
+//            'https://bug-bounty-platform-rmlo-git-main-mr-baga08s-projects.vercel.app',
+//            'https://bug-bounty-platform-rmlo-ok80c5vm1-mr-baga08s-projects.vercel.app'],
+//   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+//   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+//   credentials: true
+// }));
 
-app.options('*', cors());
+// app.options('*', cors());
 // Connect to database
 connectDB();
 
