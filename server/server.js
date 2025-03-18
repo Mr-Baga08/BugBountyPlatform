@@ -21,25 +21,41 @@ dotenv.config();
 // Initialize Express
 const app = express();
 
+// Add OPTIONS preflight handler before any other middleware
+app.options('*', (req, res) => {
+  res.header('Access-Control-Allow-Origin', 'https://bug-bounty-platform-rmlo-oto0we9oe-mr-baga08s-projects.vercel.app');
+  res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.status(204).send();
+});
+
 // Use JSON middleware
 app.use(express.json());
 app.use(bodyParser.json());
 
-// Configure CORS
+// Configure CORS with expanded allowed origins
 const allowedOrigins = [
-  process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(",") : [],
-  "http://localhost:5173" // Keep for local development
-].flat();
+  'https://bug-bounty-platform-rmlo-oto0we9oe-mr-baga08s-projects.vercel.app',
+  'https://bug-bounty-platform-rmlo.vercel.app',
+  ...(process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : []),
+  'http://localhost:5173'
+];
 
 app.use(cors({
   origin: function (origin, callback) {
+    console.log('Request origin:', origin);
     if (!origin || allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      console.log('Origin not allowed by CORS:', origin);
+      callback(new Error(`Origin ${origin} not allowed by CORS`));
     }
   },
-  credentials: true
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  credentials: true,
+  optionsSuccessStatus: 204
 }));
 
 // Connect to database
