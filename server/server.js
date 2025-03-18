@@ -181,15 +181,25 @@ const allowedOrigins = [
   "https://bug-bounty-platform-rmlo.vercel.app",
   "https://bug-bounty-platform-rmlo-git-main-mr-baga08s-projects.vercel.app",
   "https://bug-bounty-platform-rmlo-ok80c5vm1-mr-baga08s-projects.vercel.app",
+  "http://localhost:5173"
 ];
 
 // Use CORS Middleware
 app.use(cors({
-  origin: allowedOrigins,
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, origin); // Allow the request
+    } else {
+      callback(new Error("Not allowed by CORS")); // Block request
+    }
+  },
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   credentials: true
 }));
+
+// Handle Preflight Requests
+app.options("*", cors());
 
 // Middleware
 app.use(express.json());

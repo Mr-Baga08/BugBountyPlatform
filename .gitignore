@@ -1,0 +1,10 @@
+# Ignore node_modules folders
+bug_dashboard/node_modules/
+server/node_modules/
+
+# Ignore all .env files except .env.example
+bug_dashboard/.env*
+!bug_dashboard/.env.example
+
+server/.env*
+!server/.env.example
