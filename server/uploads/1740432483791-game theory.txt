@@ -1,0 +1,37 @@
+
+---------------------
+# nims 
+1)
+2)
+3)
+4) https://www.codechef.com/problems/CCGAME
+
+5) https://lightoj.com/problem/again-stone-game   // (solution)-->  https://github.com/rajonaust/LightOJ/blob/master/1296%20-%20Again%20Stone%20Game
+6) https://codeforces.com/contest/1537/problem/D
+
+
+
+given n piles from a1..an 
+a) pick 1 from each time= > if xor of all is 0 then 2nd wins or first wins
+b) u can pick at max k => so 
+
+
+this can be done usring 
+a1   a2  a3 .... a4
+g1 grundy value for a1 
+g2 grundy value for a2 
+.
+.
+gn grundy value for an
+
+if g1^g2^..gn cout<<1<<endl;
+else cout<<0<<endl;
+
+now what is grundy value ==> mex ( of all equivalent value  )
+
+mex ( a1 ==> all grandy values were we can reach fter performing operation on a1 ))
+for more detail view 
+1)  https://www.youtube.com/watch?v=2cx3MFmCXu8  E problem
+2)  https://atcoder.jp/contests/abc368/tasks/abc368_f
+
+

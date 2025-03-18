@@ -1,0 +1,19 @@
+{
+  "name": "bug-dashboard-deployment",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "prepare-vercel": "node vercel-deploy.js && node update-api-endpoints.js && node mongodb-vercel-config.js && node update-package-json.js",
+    "prepare-frontend": "cd ../bug_dashboard && npm install",
+    "prepare-backend": "cd ../server && npm install",
+    "prepare-all": "npm run prepare-vercel && npm run prepare-frontend && npm run prepare-backend"
+  },
+  "engines": {
+    "node": ">=18.x"
+  },
+  "dependencies": {
+    "child_process": "^1.0.2",
+    "fs-extra": "^11.3.0",
+    "path": "^0.12.7"
+  }
+}
