@@ -22,13 +22,21 @@ dotenv.config();
 const app = express();
 
 // Add CORS headers to all responses
+// CORS configuration - SIMPLE VERSION
 app.use((req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  // Allow all origins during development/testing
+  res.header('Access-Control-Allow-Origin', '*');
   
-  // Handle preflight requests
+  // Allow specific methods
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  
+  // Allow specific headers
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  
+  // Allow credentials if needed
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  // Handle OPTIONS preflight requests
   if (req.method === 'OPTIONS') {
     return res.status(204).end();
   }
@@ -36,17 +44,23 @@ app.use((req, res, next) => {
   next();
 });
 
+// Remove the existing CORS middleware or replace it with:
+app.use(cors({ 
+  origin: '*',  // During development/testing
+  credentials: true
+}));
+
 // Use JSON middleware
 app.use(express.json());
 app.use(bodyParser.json());
 
 // Simple CORS configuration - during development, allow all origins
-app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  credentials: true
-}));
+// app.use(cors({
+//   origin: '*',
+//   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+//   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+//   credentials: true
+// }));
 
 // Connect to database
 connectDB();
