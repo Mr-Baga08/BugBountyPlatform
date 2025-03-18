@@ -24,19 +24,26 @@ const app = express();
 // Add CORS headers to all responses
 // CORS configuration - SIMPLE VERSION
 app.use((req, res, next) => {
-  // Allow all origins during development/testing
-  res.header('Access-Control-Allow-Origin', '*');
+  // Get the origin from the request headers
+  const origin = req.headers.origin;
   
-  // Allow specific methods
+  // If the origin is from a bug-bounty-platform-rmlo deployment, allow it
+  if (origin && (
+    origin.includes('bug-bounty-platform-rmlo') || 
+    origin.includes('localhost')
+  )) {
+    res.header('Access-Control-Allow-Origin', origin);
+  } else {
+    // For all other origins, use a wildcard during development
+    res.header('Access-Control-Allow-Origin', '*');
+  }
+  
+  // Rest of your CORS headers
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-  
-  // Allow specific headers
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  
-  // Allow credentials if needed
   res.header('Access-Control-Allow-Credentials', 'true');
   
-  // Handle OPTIONS preflight requests
+  // Handle preflight requests
   if (req.method === 'OPTIONS') {
     return res.status(204).end();
   }
@@ -45,10 +52,10 @@ app.use((req, res, next) => {
 });
 
 // Remove the existing CORS middleware or replace it with:
-app.use(cors({ 
-  origin: '*',  // During development/testing
-  credentials: true
-}));
+// app.use(cors({ 
+//   origin: '*',  // During development/testing
+//   credentials: true
+// }));
 
 // Use JSON middleware
 app.use(express.json());
