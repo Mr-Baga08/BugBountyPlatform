@@ -27,9 +27,9 @@ app.use(bodyParser.json());
 
 // Configure CORS
 const allowedOrigins = [
-  'https://your-frontend-url.vercel.app',
-  'http://localhost:5173' // Keep for local development
-];
+  process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(",") : [],
+  "http://localhost:5173" // Keep for local development
+].flat();
 
 app.use(cors({
   origin: function (origin, callback) {

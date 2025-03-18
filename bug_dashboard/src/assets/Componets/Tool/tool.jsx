@@ -269,7 +269,7 @@ const SecurityTestingDashboard = () => {
   };
   const fetchFile = async (fileId) => {
     try {
-      const response = await axios.get(`API_BASE_URL + "/file/${fileId}`, {
+      const response = await axios.get(`${API_BASE_URL}/file/${fileId}`, {
         responseType: "blob", // Ensures we get the file as a binary Blob
       });
   

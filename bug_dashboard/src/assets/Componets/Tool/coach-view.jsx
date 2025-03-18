@@ -19,7 +19,7 @@ export function CoachView({ userRole  }) {
     const fetchCompletedTasks = async () => {
       try {
         console.log(projectTask)
-        const response = await axios.get(`API_BASE_URL + "/task/statusFetch/${userRole === "coach" ? "Completed" : "Reviewed"}?taskId=${taskId}`);
+        const response = await axios.get(`${API_BASE_URL}/task/statusFetch/${userRole === "coach" ? "Completed" : "Reviewed"}?taskId=${taskId}`);
         console.log(response.data.tasks);
         setTasks( response.data.tasks);
 

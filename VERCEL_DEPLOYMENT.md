@@ -1,4 +1,4 @@
-# Deployment Instructions for Vercel
+# Vercel Deployment Guide
 
 ## Backend Deployment
 
@@ -15,6 +15,7 @@
    - EMAIL_PASS
    - ADMIN_EMAIL
    - BASE_URL (your Vercel-deployed backend URL)
+   - ALLOWED_ORIGINS (your frontend URL)
 5. Deploy
 
 ## Frontend Deployment
@@ -32,7 +33,7 @@
 ## After Deployment
 
 1. Update your frontend's `.env` file with the actual deployed backend URL
-2. Update your backend's allowed origins in `server.js` with the actual deployed frontend URL
+2. Update your backend's allowed origins in the environment variables with the actual deployed frontend URL
 3. Redeploy both projects if needed
 
 ## Testing

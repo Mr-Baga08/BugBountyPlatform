@@ -15,8 +15,5 @@
       "src": "/(.*)",
       "dest": "/index.html"
     }
-  ],
-  "env": {
-    "VITE_API_BASE_URL": "@bug_dashboard_api_url"
-  }
+  ]
 }

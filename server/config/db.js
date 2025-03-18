@@ -1,21 +1,5 @@
-const mongoose = require('mongoose');
-const dotenv = require('dotenv');
-
-dotenv.config();
-
-const MONGODB_URI = process.env.MONGO_URI;
-
-if (!MONGODB_URI) {
-  throw new Error(
-    'Please define the MONGO_URI environment variable inside .env'
-  );
-}
-
-/**
- * Global is used here to maintain a cached connection across hot reloads
- * in development. This prevents connections growing exponentially
- * during API Route usage.
- */
+// Already in place in server/config/db.js
+// This pattern helps maintain connections across serverless function calls
 let cached = global.mongoose;
 
 if (!cached) {
@@ -30,7 +14,6 @@ const connectDB = async () => {
 
   if (!cached.promise) {
     const opts = {
-      // These options are recommended for Vercel serverless environment
       bufferCommands: false,
     };
 
