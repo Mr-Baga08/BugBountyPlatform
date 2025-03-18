@@ -211,12 +211,36 @@ connectDB();
 //   "https://bug-bounty-platform-rmlo-kdolidgrp-mr-baga08s-projects.vercel.app",
 //   "http://localhost:5173"
 // ].flat();
-const allowedOrigins = ['*'];
+// const allowedOrigins = ['*'];
+
+// app.use(cors({
+//   origin: function (origin, callback) {
+//     // Allow requests with no origin (like mobile apps, curl requests)
+//     if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+//       callback(null, true);
+//     } else {
+//       console.log("Blocked origin:", origin); // Log blocked origins for debugging
+//       callback(new Error("Not allowed by CORS"));
+//     }
+//   },
+//   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+//   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+//   credentials: true,
+//   maxAge: 86400 // Cache preflight response for 24 hours
+// }));
+
+// // Preflight requests
+// app.options('*', cors());
+const allowedOrigins = [
+  process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(",") : [],
+  "https://bug-bounty-platform-rmlo-41wmfip94-mr-baga08s-projects.vercel.app",
+  "http://localhost:5173" // Keep for local development
+].flat();
 
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps, curl requests)
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+    if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       console.log("Blocked origin:", origin); // Log blocked origins for debugging
@@ -229,7 +253,7 @@ app.use(cors({
   maxAge: 86400 // Cache preflight response for 24 hours
 }));
 
-// Preflight requests
+// Make sure OPTIONS requests are handled properly
 app.options('*', cors());
 
 // Middleware
