@@ -21,56 +21,31 @@ dotenv.config();
 // Initialize Express
 const app = express();
 
-// Add OPTIONS preflight handler before any other middleware
-app.options('*', (req, res) => {
-  res.header('Access-Control-Allow-Origin', 'https://bug-bounty-platform-rmlo-oto0we9oe-mr-baga08s-projects.vercel.app');
-  res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.status(204).send();
+// Add CORS headers to all responses
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+  
+  next();
 });
 
 // Use JSON middleware
 app.use(express.json());
 app.use(bodyParser.json());
 
-// Configure CORS with expanded allowed origins
-const allowedOrigins = [
-  'https://bug-bounty-platform-rmlo-oto0we9oe-mr-baga08s-projects.vercel.app',
-  'https://bug-bounty-platform-rmlo.vercel.app',
-  'https://bug-bounty-platform-rmlo.vercel.app',
-  'https://bug-hunt-platform-v1.vercel.app',
-  'https://bug-bounty-platform.vercel.app',
-  ...(process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : []),
-  'http://localhost:5173'
-];
-
+// Simple CORS configuration - during development, allow all origins
 app.use(cors({
-  origin: function (origin, callback) {
-    // For development or specific scenarios where origin might be null
-    if (!origin) {
-      return callback(null, true);
-    }
-    
-    // Check if the origin is in our allowed list
-    if (allowedOrigins.some(allowedOrigin => {
-      // Use includes to handle partial matches (for Vercel preview deployments)
-      return origin.includes(allowedOrigin) || allowedOrigin.includes(origin);
-    })) {
-      callback(null, true);
-    } else {
-      console.log('Origin not allowed by CORS:', origin);
-      // Still return true to prevent blocking, but log the issue
-      // This is a temporary solution to debug the issue
-      callback(null, true);
-      // In production, you might want to uncomment the following instead:
-      // callback(new Error(`Origin ${origin} not allowed by CORS`));
-    }
-  },
+  origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  credentials: true,
-  optionsSuccessStatus: 204
+  credentials: true
 }));
 
 // Connect to database
@@ -87,10 +62,10 @@ app.use("/api/videos", videoRoutes);
 app.use("/api/scripts", scriptRoutes);
 app.use('/api/task-history', taskHistoryRoutes);
 app.use('/api', taskLeaderboard);
-app.use("/api/task-import", taskImportRoutes); // Add the new task import routes
+app.use("/api/task-import", taskImportRoutes);
 
 // Root route
-app.use("/", (req, res) => {
+app.get("/", (req, res) => {
     console.log("Connected to backend...");
     res.status(200).json({ message: "API is running" });
 }); 
