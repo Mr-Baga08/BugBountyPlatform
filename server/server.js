@@ -176,30 +176,60 @@ const app = express();
 // Connect to Database
 connectDB();
 
-// Allowed Origins
-const allowedOrigins = [
-  "https://bug-bounty-platform-rmlo.vercel.app",
-  "https://bug-bounty-platform-rmlo-git-main-mr-baga08s-projects.vercel.app",
-  "https://bug-bounty-platform-rmlo-ok80c5vm1-mr-baga08s-projects.vercel.app",
-  "http://localhost:5173"
-];
+// // Allowed Origins
+// const allowedOrigins = [
+//   "https://bug-bounty-platform-rmlo.vercel.app",
+//   "https://bug-bounty-platform-rmlo-git-main-mr-baga08s-projects.vercel.app",
+//   "https://bug-bounty-platform-rmlo-ok80c5vm1-mr-baga08s-projects.vercel.app",
+//   "http://localhost:5173"
+// ];
 
-// Use CORS Middleware
+// // Use CORS Middleware
+// app.use(cors({
+//   origin: (origin, callback) => {
+//     if (!origin || allowedOrigins.includes(origin)) {
+//       callback(null, origin); // Allow the request
+//     } else {
+//       callback(new Error("Not allowed by CORS")); // Block request
+//     }
+//   },
+//   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+//   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+//   credentials: true
+// }));
+
+// // Handle Preflight Requests
+// app.options("*", cors());
+
+
+// Define all your allowed origins
+const allowedOrigins = [
+  process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(",") : [],
+  "https://bug-bounty-platform-rmlo.vercel.app",
+  "https://bug-bounty-platform.vercel.app",
+  "https://bug-bounty-platform-rmlo-git-main-mr-baga08s-projects.vercel.app",
+  "https://bug-bounty-platform-rmlo-kdolidgrp-mr-baga08s-projects.vercel.app",
+  "http://localhost:5173"
+].flat();
+
 app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, origin); // Allow the request
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl requests)
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
     } else {
-      callback(new Error("Not allowed by CORS")); // Block request
+      console.log("Blocked origin:", origin); // Log blocked origins for debugging
+      callback(new Error("Not allowed by CORS"));
     }
   },
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
-  credentials: true
+  credentials: true,
+  maxAge: 86400 // Cache preflight response for 24 hours
 }));
 
-// Handle Preflight Requests
-app.options("*", cors());
+// Preflight requests
+app.options('*', cors());
 
 // Middleware
 app.use(express.json());
