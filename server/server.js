@@ -38,6 +38,9 @@ app.use(bodyParser.json());
 const allowedOrigins = [
   'https://bug-bounty-platform-rmlo-oto0we9oe-mr-baga08s-projects.vercel.app',
   'https://bug-bounty-platform-rmlo.vercel.app',
+  'https://bug-bounty-platform-rmlo.vercel.app',
+  'https://bug-hunt-platform-v1.vercel.app',
+  'https://bug-bounty-platform.vercel.app',
   ...(process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : []),
   'http://localhost:5173'
 ];
