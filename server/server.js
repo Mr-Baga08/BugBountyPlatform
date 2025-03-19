@@ -28,83 +28,62 @@ const app = express();
 
 
 
-// Explicitly adding CORS headers to every response
-app.use((req, res, next) => {
-  // Get origin from request headers
-  const origin = req.headers.origin;
-  
-  // Allow all origins in the allowedOrigins array
-  if (allowedOrigins.includes(origin)) {
-    res.header('Access-Control-Allow-Origin', origin);
-  }
-  
-  // Set other CORS headers
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  
-  // Handle preflight requests immediately
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-  
-  next();
-});
+const cors = require('cors');
 
-// Keep the regular CORS middleware as a backup
-app.use(cors({
-  origin: function(origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
+// List all possible origins for your application
+const allowedOrigins = [
+  // Frontend URLs
+  'https://bug-bounty-platform-frontend-v1.vercel.app',
+  'https://bug-bounty-platform-frontend-v1-git-main.vercel.app',
+  'https://bug-bounty-platform-rmlo.vercel.app',
+  'https://bug-bounty-platform.vercel.app',
+  // Add any other frontend domains
+  
+  // Local development
+  'http://localhost:5173',
+  'http://localhost:3000'
+];
+
+// CORS options with proper configuration
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) {
+      return callback(null, true);
+    }
+    
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      // During deployment, allow all origins temporarily
-      callback(null, true);
-      // Once everything is stable, you can reinstate strict CORS:
-      // callback(new Error('Not allowed by CORS'));
+      // Log blocked origins for debugging
+      console.log(`CORS blocked origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
     }
   },
-  credentials: true
-}));
-
-// Allowed Origins -  DYNAMIC from environment variable
-const allowedOrigins = process.env.ALLOWED_ORIGINS
-    ? process.env.ALLOWED_ORIGINS.split(",")
-    : [
-        "https://bug-bounty-platform-rmlo.vercel.app",
-        "https://bug-bounty-platform.vercel.app",
-        "https://bug-bounty-platform-rmlo-git-main-mr-baga08s-projects.vercel.app",
-        "https://bug-bounty-platform-rmlo-kdolidgrp-mr-baga08s-projects.vercel.app",
-        "http://localhost:5173" //For local development
-    ];
-
-// CORS Configuration -  DYNAMIC origin handling
-const corsOptions = {
-    origin: (origin, callback) => {
-        if (!origin) {
-            // Allow requests with no origin (mobile apps, curl)
-            return callback(null, true);
-        }
-        if (allowedOrigins.includes(origin)) {
-            // Allowed origin
-            return callback(null, true);
-        } else {
-            // Blocked origin
-            console.error("CORS Blocked Origin:", origin);
-            return callback(new Error("Not allowed by CORS"));
-        }
-    },
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
-    credentials: true, //  IMPORTANT: Allows cookies/authorization headers
-    maxAge: 86400, // Cache preflight response for 24 hours (optional)
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 };
 
-// Apply CORS middleware to ALL routes
-app.use(cors(corsOptions));
+// Express middleware function that handles CORS properly including preflight requests
+const setupCors = (app) => {
+  // Handle preflight requests explicitly
+  app.options('*', cors(corsOptions));
+  
+  // Apply CORS to all routes
+  app.use(cors(corsOptions));
+  
+  // Add additional CORS headers to ensure compatibility
+  app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    next();
+  });
+};
 
-// Explicitly handle preflight requests (best practice)
-app.options("*", cors(corsOptions));
-
+module.exports = setupCors;
 // Use compression for all routes
 app.use(compression());
 
