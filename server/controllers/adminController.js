@@ -47,39 +47,50 @@ const connectDB = require("../config/db");
 
 // ✅ Admin Login
 const loginAdmin = async (req, res) => {
-    // Ensure DB connection first
+    console.log("Admin login attempt:", req.body);
+    
     try {
-        await connectDB();
-    } catch (dbError) {
-        console.error("Database connection error in loginAdmin:", dbError);
-        return res.status(500).json({ message: "Database connection error. Please try again later." });
-    }
-
-    const { email, password } = req.body;
-
-    try {
+        const { email, password } = req.body;
+        
+        // Log incoming request details
+        console.log("Email:", email);
+        console.log("Password provided:", password ? "[PRESENT]" : "[MISSING]");
+        
+        // Find admin
         const admin = await Admin.findOne({ email });
-        if (!admin) return res.status(404).json({ message: "Admin not found" });
+        console.log("Admin found:", admin ? "Yes" : "No");
+        
+        if (!admin) {
+            console.log("Admin not found with email:", email);
+            return res.status(404).json({ message: "Admin not found" });
+        }
 
+        // Compare passwords
         const isMatch = await bcrypt.compare(password, admin.password);
-        if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
+        console.log("Password match:", isMatch);
+        
+        if (!isMatch) {
+            console.log("Password does not match");
+            return res.status(400).json({ message: "Invalid credentials" });
+        }
 
+        // Generate token
         const token = jwt.sign({ id: admin._id, role: "admin" }, process.env.JWT_SECRET, { expiresIn: "1h" });
+        console.log("Token generated successfully");
 
         res.status(200).json({ 
             token, 
             user: { 
                 email: admin.email, 
                 role: "admin",
-                username: "Administrator" // Add username for consistency with user login
+                username: "Administrator"
             } 
         });
     } catch (error) {
-        console.error("Admin login error:", error);
+        console.error("Admin login error details:", error);
         res.status(500).json({ message: error.message });
     }
 };
-
 // ✅ Create Admin (Protected Route)
 const createAdmin = async (req, res) => {
     // Ensure DB connection first
