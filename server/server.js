@@ -5,6 +5,7 @@ const bodyParser = require("body-parser");
 const dotenv = require("dotenv");
 const connectDB = require("./config/db");
 
+
 // Import Routes (These are fine as they are)
 const userRoutes = require("./routes/auth");
 const adminRoutes = require("./routes/adminRoutes");
@@ -17,6 +18,7 @@ const videoRoutes = require("./routes/videoRoutes");
 const taskHistoryRoutes = require("./routes/taskHistoryRoutes");
 const taskLeaderboard = require("./routes/taskLeaderboard");
 const taskImportRoutes = require("./routes/taskImportRoutes");
+const compression = require('compression'); 
 
 // Load environment variables
 dotenv.config();
@@ -103,31 +105,52 @@ app.use(cors(corsOptions));
 // Explicitly handle preflight requests (best practice)
 app.options("*", cors(corsOptions));
 
+// Use compression for all routes
+app.use(compression());
+
+
 // Other Middleware
 app.use(express.json());
 app.use(bodyParser.json());
 
-// Connect to Database
-connectDB();
 
-// Routes (These are all fine)
-app.use("/api/auth", userRoutes);
-app.use("/api/admin", adminRoutes);
-app.use("/api/task", taskRoute);
-app.use("/api/taskReview", taskReviewRoutes);
-app.use("/api/finalReport", finalReportRoutes);
-app.use("/api/texts", textRoutes);
-app.use("/api/videos", videoRoutes);
-app.use("/api/scripts", scriptRoutes);
-app.use("/api/task-history", taskHistoryRoutes);
-app.use("/api", taskLeaderboard);
-app.use("/api/task-import", taskImportRoutes);
+// Connect to Database before setting up routes
+(async () => {
+    try {
+        await connectDB();
+        console.log('Database connected before setting up routes');
+        
+        // Routes setup
+        app.use("/api/auth", userRoutes);
+        app.use("/api/admin", adminRoutes);
+        app.use("/api/task", taskRoute);
+        app.use("/api/taskReview", taskReviewRoutes);
+        app.use("/api/finalReport", finalReportRoutes);
+        app.use("/api/texts", textRoutes);
+        app.use("/api/videos", videoRoutes);
+        app.use("/api/scripts", scriptRoutes);
+        app.use("/api/task-history", taskHistoryRoutes);
+        app.use("/api", taskLeaderboard);
+        app.use("/api/task-import", taskImportRoutes);
 
-// Root Route
-app.get("/", (req, res) => {
-    console.log("Connected to backend...");
-    res.status(200).json({ message: "API is running" });
-});
+        // Root Route
+        app.get("/", (req, res) => {
+            res.status(200).json({ message: "API is running" });
+        });
+        
+        // Catch-all error handler
+        app.use((err, req, res, next) => {
+            console.error('Global error handler:', err.stack);
+            res.status(500).json({ 
+                message: "Internal server error", 
+                error: process.env.NODE_ENV === 'development' ? err.message : undefined 
+            });
+        });
+
+    } catch (error) {
+        console.error('Database connection error during startup:', error);
+    }
+})();
 
 // Start Server
 const PORT = process.env.PORT || 3000;
