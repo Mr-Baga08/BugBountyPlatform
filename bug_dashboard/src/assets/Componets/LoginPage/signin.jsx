@@ -12,11 +12,6 @@ const Signin = ({ setUserRole }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [darkMode, setDarkMode] = useState(localStorage.getItem("darkMode") === "true");
 
-  // Debug API URL
-  useEffect(() => {
-    console.log("Current API_BASE_URL:", API_BASE_URL);
-  }, []);
-
   useEffect(() => {
     if (darkMode) {
       document.documentElement.classList.add("dark");
@@ -43,31 +38,34 @@ const Signin = ({ setUserRole }) => {
 
     try {
       // First try regular user login
-      const userLoginResponse = await tryUserLogin(email, password);
+      console.log("Attempting user login");
+      const userLoginResponse = await axios.post(`${API_BASE_URL}/auth/login`, { 
+        email, 
+        password 
+      });
+      
+      console.log("User login successful:", userLoginResponse.data);
       handleSuccessfulLogin(userLoginResponse);
     } catch (userError) {
-      console.log("Regular user login failed, trying admin login...");
-      console.log("User login error:", userError.message);
-      if (userError.response) {
-        console.log("Response status:", userError.response.status);
-        console.log("Response data:", userError.response.data);
-      }
+      console.log("Regular user login failed, trying admin login...", userError);
       
       try {
         // If user login fails, try admin login
-        const adminLoginResponse = await tryAdminLogin(email, password);
+        console.log("Attempting admin login");
+        const adminLoginResponse = await axios.post(`${API_BASE_URL}/admin/login`, { 
+          email, 
+          password 
+        });
+        
+        console.log("Admin login successful:", adminLoginResponse.data);
         handleSuccessfulLogin(adminLoginResponse);
       } catch (adminError) {
-        console.log("Admin login error:", adminError.message);
-        if (adminError.response) {
-          console.log("Response status:", adminError.response.status);
-          console.log("Response data:", adminError.response.data);
-        }
+        console.error("Admin login failed:", adminError);
         
         // Both login attempts failed
         const errorMessage = adminError.response?.data?.message || 
-                            userError.response?.data?.message || 
-                            "Login failed. Please check your credentials.";
+                           userError.response?.data?.message || 
+                           "Login failed. Please check your credentials.";
         
         setMessage(errorMessage);
         setIsLoading(false);
@@ -75,38 +73,8 @@ const Signin = ({ setUserRole }) => {
     }
   };
 
-  // Try to log in as a regular user (hunter or coach)
-  const tryUserLogin = async (email, password) => {
-    console.log("Attempting user login with:", { email });
-    return await axios.post(
-      `${API_BASE_URL}/auth/login`, 
-      { email, password },
-      {
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      }
-    );
-  };
-
-  // Try to log in as an admin
-  const tryAdminLogin = async (email, password) => {
-    console.log("Attempting admin login with:", { email });
-    // Testing with direct URL to isolate base URL issues
-    return await axios.post(
-      `${API_BASE_URL}/admin/login`, 
-      { email, password },
-      {
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      }
-    );
-  };
-
   // Handle successful login response
   const handleSuccessfulLogin = (response) => {
-    console.log("Login successful, response:", response.data);
     const data = response.data;
     
     // Store auth token
@@ -118,7 +86,7 @@ const Signin = ({ setUserRole }) => {
     
     // Store user info
     if (data.user) {
-      localStorage.setItem("userName", data.user.username);
+      localStorage.setItem("userName", data.user.username || "User");
       localStorage.setItem("userEmail", data.user.email);
     } else if (data.admin) {
       localStorage.setItem("userName", "Admin");
