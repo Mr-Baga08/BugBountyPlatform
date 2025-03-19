@@ -46,8 +46,14 @@ const Admin = require("../models/Admin");
 const connectDB = require("../config/db");
 
 // ✅ Admin Login
+// In adminController.js
 const loginAdmin = async (req, res) => {
     console.log("Admin login attempt:", req.body);
+    
+    if (!req.body || !req.body.email || !req.body.password) {
+        console.log("Missing email or password in request body");
+        return res.status(400).json({ message: "Email and password are required" });
+    }
     
     try {
         const { email, password } = req.body;
@@ -65,14 +71,23 @@ const loginAdmin = async (req, res) => {
             return res.status(404).json({ message: "Admin not found" });
         }
 
-        // Compare passwords
-        const isMatch = await bcrypt.compare(password, admin.password);
-        console.log("Password match:", isMatch);
-        
-        if (!isMatch) {
-            console.log("Password does not match");
-            return res.status(400).json({ message: "Invalid credentials" });
+        // Compare passwords with detailed logging
+        try {
+            console.log("Stored password hash:", admin.password);
+            const isMatch = await bcrypt.compare(password, admin.password);
+            console.log("Password match result:", isMatch);
+            
+            if (!isMatch) {
+                console.log("Password comparison failed");
+                return res.status(400).json({ message: "Invalid credentials" });
+            }
+        } catch (bcryptError) {
+            console.error("bcrypt compare error:", bcryptError);
+            return res.status(500).json({ message: "Authentication error" });
         }
+
+        // If we get here, the password matched
+        console.log("Password verified successfully");
 
         // Generate token
         const token = jwt.sign({ id: admin._id, role: "admin" }, process.env.JWT_SECRET, { expiresIn: "1h" });
@@ -91,6 +106,8 @@ const loginAdmin = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+
+
 // ✅ Create Admin (Protected Route)
 const createAdmin = async (req, res) => {
     // Ensure DB connection first
