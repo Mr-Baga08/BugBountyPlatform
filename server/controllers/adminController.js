@@ -40,73 +40,67 @@
 // };
 
 // module.exports = { loginAdmin, createAdmin };
+
+
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const Admin = require("../models/Admin");
 const connectDB = require("../config/db");
 
 // ✅ Admin Login
-// In adminController.js
 const loginAdmin = async (req, res) => {
-    console.log("Admin login attempt:", req.body);
-    
-    if (!req.body || !req.body.email || !req.body.password) {
-        console.log("Missing email or password in request body");
+    // Ensure DB connection first
+    try {
+        await connectDB();
+    } catch (dbError) {
+        console.error("Database connection error in loginAdmin:", dbError);
+        return res.status(500).json({ message: "Database connection error. Please try again later." });
+    }
+
+    const { email, password } = req.body;
+
+    if (!email || !password) {
         return res.status(400).json({ message: "Email and password are required" });
     }
-    
+
     try {
-        const { email, password } = req.body;
-        
-        // Log incoming request details
-        console.log("Email:", email);
-        console.log("Password provided:", password ? "[PRESENT]" : "[MISSING]");
-        
-        // Find admin
+        console.log(`Attempting to find admin with email: ${email}`);
         const admin = await Admin.findOne({ email });
-        console.log("Admin found:", admin ? "Yes" : "No");
         
         if (!admin) {
-            console.log("Admin not found with email:", email);
+            console.log(`Admin not found with email: ${email}`);
             return res.status(404).json({ message: "Admin not found" });
         }
 
-        // Compare passwords with detailed logging
-        try {
-            console.log("Stored password hash:", admin.password);
-            const isMatch = await bcrypt.compare(password, admin.password);
-            console.log("Password match result:", isMatch);
-            
-            if (!isMatch) {
-                console.log("Password comparison failed");
-                return res.status(400).json({ message: "Invalid credentials" });
-            }
-        } catch (bcryptError) {
-            console.error("bcrypt compare error:", bcryptError);
-            return res.status(500).json({ message: "Authentication error" });
+        console.log(`Admin found, comparing passwords`);
+        const isMatch = await bcrypt.compare(password, admin.password);
+        
+        if (!isMatch) {
+            console.log(`Password mismatch for admin: ${email}`);
+            return res.status(400).json({ message: "Invalid credentials" });
         }
 
-        // If we get here, the password matched
-        console.log("Password verified successfully");
+        console.log(`Password matched, generating token`);
+        const token = jwt.sign(
+            { id: admin._id, role: "admin" }, 
+            process.env.JWT_SECRET, 
+            { expiresIn: "1h" }
+        );
 
-        // Generate token
-        const token = jwt.sign({ id: admin._id, role: "admin" }, process.env.JWT_SECRET, { expiresIn: "1h" });
-        console.log("Token generated successfully");
-
+        console.log(`Admin login successful: ${email}`);
         res.status(200).json({ 
             token, 
             user: { 
                 email: admin.email, 
                 role: "admin",
-                username: "Administrator"
+                username: "Administrator" // Add username for consistency with user login
             } 
         });
     } catch (error) {
-        console.error("Admin login error details:", error);
-        res.status(500).json({ message: error.message });
+        console.error("Admin login error:", error);
+        res.status(500).json({ message: "Internal server error during login" });
     }
 };
-
 
 // ✅ Create Admin (Protected Route)
 const createAdmin = async (req, res) => {
@@ -123,7 +117,7 @@ const createAdmin = async (req, res) => {
         const existingAdmin = await Admin.findOne({ email });
         if (existingAdmin) return res.status(400).json({ message: "Admin already exists" });
 
-        const hashedPassword = await bcrypt.hash(password, 19); // Hash password before saving
+        const hashedPassword = await bcrypt.hash(password, 10); // Hash password before saving
         const newAdmin = new Admin({ email, password: hashedPassword });
 
         await newAdmin.save();
@@ -131,8 +125,10 @@ const createAdmin = async (req, res) => {
         res.status(201).json({ message: "Admin created successfully" });
     } catch (error) {
         console.error("Admin creation error:", error);
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ message: "Internal server error during admin creation" });
     }
 };
+
+module.exports = { loginAdmin, createAdmin };
 
 module.exports = { loginAdmin, createAdmin };
