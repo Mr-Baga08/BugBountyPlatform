@@ -3,18 +3,26 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const PendingUser = require("../models/PendingUser");
 const transporter = require("../config/email");
+const connectDB = require("../config/db");
 require("dotenv").config();
 
+// ✅ Register User (Only Coach & Hunter)
 const registerUser = async (req, res) => {
+    // Ensure DB connection first
+    try {
+        await connectDB();
+    } catch (dbError) {
+        console.error("Database connection error in registerUser:", dbError);
+        return res.status(500).json({ message: "Database connection error. Please try again later." });
+    }
+
     const { username, email, password, role } = req.body;
 
-    // Basic validation
     if (!username || !email || !password || !role) {
         return res.status(400).json({ message: "All fields are required" });
     }
 
     try {
-        // Role validation
         if (role !== "coach" && role !== "hunter") {
             return res.status(400).json({ message: "Only Coach and Hunter can register" });
         }
@@ -27,10 +35,11 @@ const registerUser = async (req, res) => {
             return res.status(400).json({ message: "Username already taken. Please choose a different username." });
         }
 
-        // Check if the email is already registered
+        // Check if the user is already approved
         const existingUser = await User.findOne({ email });
         if (existingUser) {
-            return res.status(400).json({ message: "Email already registered. Please use a different email or sign in." });
+            // Don't expose whether password matches for security
+            return res.status(400).json({ message: "Email already registered. Please login or use a different email." });
         }
 
         // Check if user is already pending approval
@@ -41,21 +50,16 @@ const registerUser = async (req, res) => {
 
         // Create a new pending user
         const hashedPassword = await bcrypt.hash(password, 10);
-        const newPendingUser = new PendingUser({ 
-            username, 
-            email, 
-            password: hashedPassword, 
-            role 
-        });
+        const newPendingUser = new PendingUser({ username, email, password: hashedPassword, role });
 
         await newPendingUser.save();
         
-        // Try to send email notification but don't fail if it doesn't work
+        // Try to send notification email but don't fail if it doesn't work
         try {
-            sendVerificationEmail(newPendingUser);
+            await sendVerificationEmail(newPendingUser);
         } catch (emailError) {
-            console.error("Could not send verification email:", emailError);
-            // Continue with the registration process even if email fails
+            console.warn("Email notification failed, but user registration succeeded:", emailError.message);
+            // Continue registration process even if email fails
         }
 
         return res.status(201).json({ message: "Registration request sent. Awaiting admin approval." });
@@ -65,8 +69,17 @@ const registerUser = async (req, res) => {
         return res.status(500).json({ message: "Internal server error." });
     }
 };
+
 // ✅ Approve User
 const approveUser = async (req, res) => {
+    // Ensure DB connection first
+    try {
+        await connectDB();
+    } catch (dbError) {
+        console.error("Database connection error in approveUser:", dbError);
+        return res.status(500).json({ message: "Database connection error. Please try again later." });
+    }
+
     try {
         const { pendingUserId } = req.body;
         if (!pendingUserId) {
@@ -98,6 +111,13 @@ const approveUser = async (req, res) => {
 
         // Delete from pending collection
         await PendingUser.findByIdAndDelete(pendingUserId);
+        
+        // Try to send approval email
+        try {
+            await sendApprovalEmail(pendingUser, true);
+        } catch (emailError) {
+            console.warn("Approval email failed to send, but user was approved:", emailError.message);
+        }
 
         return res.status(200).json({ message: "User approved successfully!" });
 
@@ -109,6 +129,14 @@ const approveUser = async (req, res) => {
 
 // ✅ Login User
 const loginUser = async (req, res) => {
+    // Ensure DB connection first
+    try {
+        await connectDB();
+    } catch (dbError) {
+        console.error("Database connection error in loginUser:", dbError);
+        return res.status(500).json({ message: "Database connection error. Please try again later." });
+    }
+
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -116,7 +144,6 @@ const loginUser = async (req, res) => {
     }
 
     try {
-        
         const user = await User.findOne({ email });
         if (!user) return res.status(404).json({ message: "User not found." });
 
@@ -135,7 +162,16 @@ const loginUser = async (req, res) => {
         // Redirect URL based on role
         const redirectUrl = user.role === "coach" ? "/coach-dashboard" : "/hunter-dashboard";
         
-        return res.status(200).json({ token, user, redirectUrl });
+        return res.status(200).json({ 
+            token, 
+            user: {
+                username: user.username,
+                email: user.email,
+                role: user.role,
+                id: user._id
+            }, 
+            redirectUrl 
+        });
 
     } catch (error) {
         console.error("Error during login:", error);
@@ -145,13 +181,27 @@ const loginUser = async (req, res) => {
 
 // ✅ Reject User
 const rejectUser = async (req, res) => {
+    // Ensure DB connection first
+    try {
+        await connectDB();
+    } catch (dbError) {
+        console.error("Database connection error in rejectUser:", dbError);
+        return res.status(500).json({ message: "Database connection error. Please try again later." });
+    }
+
     const { userId } = req.body;
     try {
         const pendingUser = await PendingUser.findById(userId);
         if (!pendingUser) return res.status(404).json({ message: "User not found" });
 
         await PendingUser.findByIdAndDelete(userId);
-        sendApprovalEmail(pendingUser, false);
+        
+        // Try to send rejection email
+        try {
+            await sendApprovalEmail(pendingUser, false);
+        } catch (emailError) {
+            console.warn("Rejection email failed to send, but user was rejected:", emailError.message);
+        }
 
         res.status(200).json({ message: "User rejected successfully." });
     } catch (error) {
@@ -159,9 +209,16 @@ const rejectUser = async (req, res) => {
     }
 };
 
-
 // ✅ Fetch All Pending Users
 const getPendingUsers = async (req, res) => {
+    // Ensure DB connection first
+    try {
+        await connectDB();
+    } catch (dbError) {
+        console.error("Database connection error in getPendingUsers:", dbError);
+        return res.status(500).json({ message: "Database connection error. Please try again later." });
+    }
+
     try {
         const pendingUsers = await PendingUser.find();
         res.status(200).json(pendingUsers);
@@ -171,40 +228,79 @@ const getPendingUsers = async (req, res) => {
 };
 
 // Role-based Dashboards
-const getCoachDashboard = (req, res) => req.user.role === "coach"
-    ? res.json({ message: "Welcome to the Coach Dashboard!" })
-    : res.status(403).json({ message: "Access denied" });
+const getCoachDashboard = async (req, res) => {
+    // Ensure DB connection first
+    try {
+        await connectDB();
+    } catch (dbError) {
+        console.error("Database connection error in getCoachDashboard:", dbError);
+        return res.status(500).json({ message: "Database connection error. Please try again later." });
+    }
 
-const getHunterDashboard = (req, res) => req.user.role === "hunter"
-    ? res.json({ message: "Welcome to the Hunter Dashboard!" })
-    : res.status(403).json({ message: "Access denied" });
+    if (req.user.role === "coach") {
+        res.json({ message: "Welcome to the Coach Dashboard!" });
+    } else {
+        res.status(403).json({ message: "Access denied" });
+    }
+};
 
+const getHunterDashboard = async (req, res) => {
+    // Ensure DB connection first
+    try {
+        await connectDB();
+    } catch (dbError) {
+        console.error("Database connection error in getHunterDashboard:", dbError);
+        return res.status(500).json({ message: "Database connection error. Please try again later." });
+    }
 
+    if (req.user.role === "hunter") {
+        res.json({ message: "Welcome to the Hunter Dashboard!" });
+    } else {
+        res.status(403).json({ message: "Access denied" });
+    }
+};
 
-    const sendVerificationEmail = (user) => {
-        const mailOptions = {
-            from: process.env.EMAIL_USER,
-            to: process.env.ADMIN_EMAIL,
-            subject: "New User Registration Approval Needed",
-            html: `<p>A new user has registered: ${user.username}</p>
-                   <p><strong>Email:</strong> ${user.email}</p>
-                   <p><strong>Role:</strong> ${user.role}</p>`
-        };
-        transporter.sendMail(mailOptions);
+// Email notification functions wrapped with proper error handling
+const sendVerificationEmail = async (user) => {
+    if (!process.env.EMAIL_USER || !process.env.ADMIN_EMAIL) {
+        throw new Error("Email configuration missing");
+    }
+
+    const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: process.env.ADMIN_EMAIL,
+        subject: "New User Registration Approval Needed",
+        html: `<p>A new user has registered: ${user.username}</p>
+               <p><strong>Email:</strong> ${user.email}</p>
+               <p><strong>Role:</strong> ${user.role}</p>`
     };
     
-    const sendApprovalEmail = (user, isApproved) => {
-        const mailOptions = {
-            from: process.env.EMAIL_USER,
-            to: user.email,
-            subject: `Your Account Has Been ${isApproved ? "Approved" : "Rejected"}`,
-            text: isApproved
-                ? `Congratulations! Your account has been approved. You can now log in.`
-                : `Sorry, your account request has been rejected.`,
-        };
-        transporter.sendMail(mailOptions);
+    return transporter.sendMail(mailOptions);
+};
+
+const sendApprovalEmail = async (user, isApproved) => {
+    if (!process.env.EMAIL_USER) {
+        throw new Error("Email configuration missing");
+    }
+
+    const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: user.email,
+        subject: `Your Account Has Been ${isApproved ? "Approved" : "Rejected"}`,
+        text: isApproved
+            ? `Congratulations! Your account has been approved. You can now log in.`
+            : `Sorry, your account request has been rejected.`,
     };
     
+    return transporter.sendMail(mailOptions);
+};
 
-
-module.exports = { registerUser, approveUser, loginUser, getCoachDashboard, getHunterDashboard, rejectUser, getPendingUsers };
+module.exports = { 
+    registerUser, 
+    approveUser, 
+    loginUser, 
+    getCoachDashboard, 
+    getHunterDashboard, 
+    rejectUser, 
+    getPendingUsers 
+};
