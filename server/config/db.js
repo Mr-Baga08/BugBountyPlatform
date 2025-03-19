@@ -13,8 +13,7 @@ if (!MONGODB_URI) {
 
 /**
  * Global is used here to maintain a cached connection across hot reloads
- * in development. This prevents connections growing exponentially
- * during API Route usage.
+ * in development and across function calls in serverless environments.
  */
 let cached = global.mongoose;
 
@@ -30,17 +29,20 @@ const connectDB = async () => {
 
   if (!cached.promise) {
     const opts = {
-      // These options are recommended for Vercel serverless environment
-      bufferCommands: false,
+      bufferCommands: true, // Changed to true for more reliability
+      serverSelectionTimeoutMS: 10000, // Wait 10 seconds before timing out
+      connectTimeoutMS: 10000, // Wait 10 seconds for initial connection
+      socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
     };
 
-    cached.promise = mongoose.connect(process.env.MONGO_URI, opts)
+    cached.promise = mongoose.connect(MONGODB_URI, opts)
       .then(mongoose => {
-        console.log('MongoDB connected');
+        console.log('MongoDB connected successfully');
         return mongoose;
       })
       .catch(err => {
         console.error('MongoDB connection error:', err.message);
+        cached.promise = null; // Reset the promise on error
         throw err;
       });
   }
