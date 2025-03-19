@@ -2,11 +2,11 @@ import React, { useEffect, useState } from "react";
 import { ChevronDown, Upload, Plus } from "lucide-react";
 import axios from "axios";
 import { useLocation, useParams } from "react-router-dom";
-import API_BASE_URL from '../../../../src/assets/Componets/AdminDashboard/Admin';
+import API_BASE_URL from '../AdminDashboard/config';
 
 const SecurityTestingDashboard = () => {
   const location = useLocation();
-  const projectTask  = location.state || {};
+  const projectTask = location.state || {};
   const [scriptName, setScriptName] = useState("");
   const [category, setCategory] = useState("");
   const [scriptCode, setScriptCode] = useState("");
@@ -30,20 +30,18 @@ const SecurityTestingDashboard = () => {
     code: "",
   });
 
-
   useEffect(() => {
     const fetchTaskReview = async () => {
       try {
-        // alert()
         const response = await fetch(
-          `${API_BASE_URL}/taskReview/allreview/${taskId}'
+          `${API_BASE_URL}/taskReview/allreview/${taskId}`
         );
         const data = await response.json();
         setReviewList(data.allTask);
-        console.log(data)
-        reviewList.map((index)=>{
-          console.log(index)
-        })
+        console.log(data);
+        reviewList.map((index) => {
+          console.log(index);
+        });
         console.log(Array.isArray(reviewList));
       } catch (error) {
         console.error("Error fetching reviews:", error);
@@ -58,14 +56,10 @@ const SecurityTestingDashboard = () => {
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
   // const role = localStorage.getItem('userRole')
   const roles = [
-
     { id: "Hunter", label: `View as Hunter` },
     // { id: "coach", label: "View as Coach" },
     // { id: "admin", label: "View as Admin" },
   ];
-
-
-
 
   const fetchScripts = async () => {
     try {
@@ -80,10 +74,6 @@ const SecurityTestingDashboard = () => {
   useEffect(() => {
     fetchScripts();
   }, []);
-
-
-  // const ResourceViewer = () => {
-  //   const [resources, setResources] = useState([]);
 
   const [resources, setResources] = useState([]);
 
@@ -106,58 +96,54 @@ const SecurityTestingDashboard = () => {
     fetchResources();
   }, []);
 
-    // Filter the fetched scripts based on search term
-    const filteredScripts = dbScripts.filter((script) => {
-      const cat = script.category || "";
-      const act = script.activity || "";
-      return (
-        cat.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        act.toLowerCase().includes(searchTerm.toLowerCase())
+  // Filter the fetched scripts based on search term
+  const filteredScripts = dbScripts.filter((script) => {
+    const cat = script.category || "";
+    const act = script.activity || "";
+    return (
+      cat.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      act.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  });
+
+  // Handle input changes for the new script form
+  const handleNewScriptInputChange = (e) => {
+    setNewScript({ ...newScript, [e.target.name]: e.target.value });
+  };
+
+  // Handle new script submission – note the keys we send!
+  const handleAddNewScript = async () => {
+    console.log("New script data:", newScript);
+    if (!newScript.name || !newScript.category || !newScript.code) {
+      alert("Please fill in all fields!");
+      return;
+    }
+    // Send keys that your backend expects
+    const scriptData = {
+      script_name: newScript.name, // maps to activity in the backend
+      category: newScript.category,
+      script_code: newScript.code, // maps to tools_technique in the backend
+    };
+
+    try {
+      const response = await axios.post(
+        `${API_BASE_URL}/scripts/create`,
+        scriptData,
+        { headers: { "Content-Type": "application/json" } }
       );
-    });
-
-    // Handle input changes for the new script form
-    const handleNewScriptInputChange = (e) => {
-      setNewScript({ ...newScript, [e.target.name]: e.target.value });
-    };
-
-    // Handle new script submission – note the keys we send!
-    const handleAddNewScript = async () => {
-      console.log("New script data:", newScript);
-      if (!newScript.name || !newScript.category || !newScript.code) {
-        alert("Please fill in all fields!");
-        return;
-      }
-      // Send keys that your backend expects
-      const scriptData = {
-        script_name: newScript.name, // maps to activity in the backend
-        category: newScript.category,
-        script_code: newScript.code, // maps to tools_technique in the backend
-      };
-
-      try {
-        const response = await axios.post(
-          `${API_BASE_URL}/scripts/create`,
-          scriptData,
-          { headers: { "Content-Type": "application/json" } }
-        );
-        console.log("New script added:", response.data);
-        alert("Script added successfully!");
-        setNewScript({ name: "", category: "", code: "" });
-        fetchScripts();
-      } catch (error) {
-        console.error("Error adding script:", error.response?.data || error.message);
-        alert("Failed to add script. Check the console for details.");
-      }
-    };
-
+      console.log("New script added:", response.data);
+      alert("Script added successfully!");
+      setNewScript({ name: "", category: "", code: "" });
+      fetchScripts();
+    } catch (error) {
+      console.error("Error adding script:", error.response?.data || error.message);
+      alert("Failed to add script. Check the console for details.");
+    }
+  };
 
   const handleRoleChange = (role) => {
     setSelectedRole(role);
     setIsRoleDropdownOpen(false);
-
-    if (role === "coach") navigate("/coachview");
-    if (role === "admin") navigate("/adminview");
   };
 
   // Testing scripts data
@@ -188,14 +174,14 @@ const SecurityTestingDashboard = () => {
     } else {
       // alert(event.target.files)
       setSupportingFiles(event.target.files[0]);
-      alert("added upportingFiles successfully");
+      alert("added supporting files successfully");
     }
     if (file) {
       console.log("File selected:", file.name);
     }
   };
 
-  const handleFinalReportSubmit = async(e)=>{
+  const handleFinalReportSubmit = async (e) => {
     try {
       const response = await axios.post(
         `${API_BASE_URL}/finalReport/createOrUpdate`,
@@ -204,31 +190,31 @@ const SecurityTestingDashboard = () => {
           reportSummary: reportSummary,
           difficulty: difficultyRating,
           updatedBy: localStorage.getItem("userName"),
-          userEmail:localStorage.getItem("userEmail")
+          userEmail: localStorage.getItem("userEmail")
         },
         {
           headers: { "Content-Type": "application/json" }, // Use application/json
         }
       );
-      alert("submitted successfully")
-      setReportSummary("")
+      alert("submitted successfully");
+      setReportSummary("");
     }
-    catch(e){
-      alert("Not able to submit")
+    catch (e) {
+      alert("Not able to submit");
     }
-  }
+  };
 
   const handleSubmit = async (e) => {
-
     e.preventDefault();
 
     const formData = new FormData();
-    // formData.append("scriptName", selectedScript?.name || ""); // Pass selected script name
-    if(!file ){
-      alert("please select file"); return ;
+    if (!file) {
+      alert("please select file"); 
+      return;
     }
-    if(!supportingFiles){
-      alert("please select supportingFiles");return ;
+    if (!supportingFiles) {
+      alert("please select supportingFiles"); 
+      return;
     }
     formData.append("scriptId", script.scriptId);
     formData.append("scriptFile", file);
@@ -237,10 +223,6 @@ const SecurityTestingDashboard = () => {
     formData.append("taskId", taskId);
     formData.append("supportFile", supportingFiles);
     formData.append("reviewBy", localStorage.getItem("userName"));
-
-    // Array.from(supportingFiles).forEach((file) => {
-
-    // });
 
     try {
       const response = await axios.post(
@@ -251,12 +233,10 @@ const SecurityTestingDashboard = () => {
         }
       );
 
-
-      // const data = await response.json();
       console.log("Response:", response.data);
       alert("Review submitted successfully!");
 
-      setReviewList([...reviewList,response.data.taskReview]);
+      setReviewList([...reviewList, response.data.taskReview]);
 
       setObservedBehavior("");
       setVulnerabilities("");
@@ -264,12 +244,13 @@ const SecurityTestingDashboard = () => {
       setSupportingFiles(null);
     } catch (error) {
       console.error("Error:", error);
-      alert("Failed to submit." , error);
+      alert("Failed to submit.", error);
     }
   };
+  
   const fetchFile = async (fileId) => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/file/${fileId}`, {
+      const response = await axios.get(`${API_BASE_URL}/taskReview/file/${fileId}`, {
         responseType: "blob", // Ensures we get the file as a binary Blob
       });
   
@@ -291,10 +272,10 @@ const SecurityTestingDashboard = () => {
     }
   };
 
-  const deleteReivew = async(id , supportFile ,scriptFile)=>{
-    try{
+  const deleteReview = async (id, supportFile, scriptFile) => {
+    try {
       const response1 = await axios.delete(
-        `API_BASE_URL + "/taskReview/fileDelete/${supportFile}`,
+        `${API_BASE_URL}/taskReview/fileDelete/${supportFile}`,
         {
           headers: { "Content-Type": "multipart/form-data" },
         }
@@ -302,7 +283,7 @@ const SecurityTestingDashboard = () => {
     
       console.log("Deleting task review:", id);
       const response2 = await axios.delete(
-        `API_BASE_URL + "/taskReview/deleteReview/${id}`,
+        `${API_BASE_URL}/taskReview/deleteReview/${id}`,
         {
           headers: { "Content-Type": "multipart/form-data" },
         }
@@ -310,20 +291,20 @@ const SecurityTestingDashboard = () => {
     
       console.log("Deleting scriptFile:", scriptFile);
       const response3 = await axios.delete(
-        `API_BASE_URL + "/taskReview/fileDelete/${scriptFile}`,
+        `${API_BASE_URL}/taskReview/fileDelete/${scriptFile}`,
         {
           headers: { "Content-Type": "multipart/form-data" },
         }
       );
 
       setReviewList((prevList) => prevList.filter((review) => review._id !== id));
-      alert("deleted the review")
+      alert("Deleted the review");
     }
-    catch(error){
-      alert("not able to delete")
+    catch (error) {
+      alert("Not able to delete");
       console.error("Error fetching file:", error);
     }
-  }
+  };
   
 
   return (
@@ -406,13 +387,14 @@ const SecurityTestingDashboard = () => {
                       />
                       {filteredScripts.length > 0 ? (
                         filteredScripts.map((script) => (
-                          <div className="mb-1">
-                           <button onClick={()=>setScript(script)}>
-                            <div key={script._id} className="mb-2">
-                            <div className="font-bold">{script.category}</div>
-                            <div className="ml-2">{script.activity}</div>
+                          <div key={script._id} className="mb-1">
+                           <button onClick={() => setScript(script)}>
+                            <div className="mb-2">
+                              <div className="font-bold">{script.category}</div>
+                              <div className="ml-2">{script.activity}</div>
+                            </div>
+                           </button>
                           </div>
-                           </button></div>
                         ))
                       ) : (
                         <p className="text-gray-500">No scripts available</p>
@@ -422,29 +404,27 @@ const SecurityTestingDashboard = () => {
                 </div>
 
                 <div className="p-4 max-w-3xl mx-auto">
-  <h1 className="text-xl font-semibold mb-2">📚 Documentation & Tutorials</h1>
-  {resources.length === 0 ? (
-    <p className="text-gray-500 text-sm">Loading resources...</p>
-  ) : (
-    <div className="grid gap-3">
-      {resources.map((resource) => (
-        <div key={resource._id} className="p-3 shadow-sm border border-gray-300 rounded-md bg-white">
-          <a
-            href={resource.content}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-base font-medium text-blue-600 hover:underline"
-          >
-            {resource.title}
-          </a>
-          <p className="text-xs text-gray-600">{resource.description}</p>
-        </div>
-      ))}
-    </div>
-  )}
-</div>  
-
-
+                  <h1 className="text-xl font-semibold mb-2">📚 Documentation & Tutorials</h1>
+                  {resources.length === 0 ? (
+                    <p className="text-gray-500 text-sm">Loading resources...</p>
+                  ) : (
+                    <div className="grid gap-3">
+                      {resources.map((resource) => (
+                        <div key={resource._id} className="p-3 shadow-sm border border-gray-300 rounded-md bg-white">
+                          <a
+                            href={resource.content}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-base font-medium text-blue-600 hover:underline"
+                          >
+                            {resource.title}
+                          </a>
+                          <p className="text-xs text-gray-600">{resource.description}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>  
 
                 {/* Add New Script Form */}
                 <div className="space-y-4">
@@ -532,18 +512,6 @@ const SecurityTestingDashboard = () => {
                 />
               </div>
 
-              {/* <div>
-                <label className="block mb-2">Observed Behavior</label>
-                <textarea className="w-full p-2 border rounded min-h-[100px]" />
-              </div>
-
-              <div>
-                <label className="block mb-2">
-                  Potential Vulnerabilities Identified
-                </label>
-                <textarea className="w-full p-2 border rounded min-h-[100px]" />
-              </div> */}
-
               <div>
                 <label className="block mb-2">Supporting Files</label>
                 <div
@@ -563,80 +531,51 @@ const SecurityTestingDashboard = () => {
                 </div>
               </div>
 
-              {/* <div>
-                <label className="block mb-2">Supporting Files</label>
-                <div
-                  className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer"
-                  onClick={() =>
-                    document.getElementById("supporting-files").click()
-                  }
-                >
-                  <Plus className="mx-auto h-12 w-12 text-gray-400" />
-                  <div className="mt-2">Add files</div>
-                  <input
-                    id="supporting-files"
-                    type="file"
-                    multiple
-                    className="hidden"
-                    onChange={handleFileUpload}
-                  />
-                </div>
-              </div> */}
-              {/* <button
-              onClick={(e) => handleSubmit(e)} // Pass event
-  disabled={projectTask.status !== "In Progress"}
-  className={`px-4 py-2 rounded-md 
-    ${projectTask.status === "In Progress" ? "bg-green-600  text-white hover:bg-blue-700" : "w-full bg-gray-400 text-gray-600 cursor-not-allowed relative"}`}
->
-  Submit
-</button> */}
-
-               <button
-                 className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
-                 onClick={(e) => handleSubmit(e)} // Pass event
-               >
-                 Submit Review 
-               </button>
+              <button
+                className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
+                onClick={(e) => handleSubmit(e)} // Pass event
+              >
+                Submit Review 
+              </button>
             </div>
           </div>
 
           {Array.isArray(reviewList) &&
-            reviewList.map((review) => (
+            reviewList.map((review, index) => (
               <div key={review._id || index} className="border p-4 rounded-lg shadow-md">
-    <p><strong>Reviewed By:</strong> {review.reviewBy}</p>
-    <p><strong>Observed Behavior:</strong> {review.observedBehavior}</p>
-    <p><strong>Vulnerabilities:</strong> {review.vulnerabilities}</p>
-    <p><strong>Last Review:</strong> {new Date(review.lastReview).toLocaleString()}</p>
-    <p><strong>FeedBack:</strong> {review.feedBack}</p>
-    {/* Clickable links to fetch files */}
-    <p>
-      <strong>Script File:</strong>{" "}
-      <span
-        className="text-blue-500 cursor-pointer underline"
-        onClick={() => fetchFile(review.scriptFile)}
-      >
-        Download Script
-      </span>
-    </p>
+                <p><strong>Reviewed By:</strong> {review.reviewBy}</p>
+                <p><strong>Observed Behavior:</strong> {review.observedBehavior}</p>
+                <p><strong>Vulnerabilities:</strong> {review.vulnerabilities}</p>
+                <p><strong>Last Review:</strong> {new Date(review.lastReview).toLocaleString()}</p>
+                <p><strong>FeedBack:</strong> {review.feedBack}</p>
+                {/* Clickable links to fetch files */}
+                <p>
+                  <strong>Script File:</strong>{" "}
+                  <span
+                    className="text-blue-500 cursor-pointer underline"
+                    onClick={() => fetchFile(review.scriptFile)}
+                  >
+                    Download Script
+                  </span>
+                </p>
 
-    <p>
-      <strong>Supporting File:</strong>{" "}
-      <span
-        className="text-blue-500 cursor-pointer underline"
-        onClick={() => fetchFile(review.supportFile)}
-      >
-        Download Support File
-      </span>
-    </p>
-    <button className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-    onClick={()=>{
-      deleteReivew(review._id , review.supportFile , review.scriptFile)
-    }}
-    >
-  Delete
-</button>
-  </div>
-              
+                <p>
+                  <strong>Supporting File:</strong>{" "}
+                  <span
+                    className="text-blue-500 cursor-pointer underline"
+                    onClick={() => fetchFile(review.supportFile)}
+                  >
+                    Download Support File
+                  </span>
+                </p>
+                <button className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                  onClick={() => {
+                    deleteReview(review._id, review.supportFile, review.scriptFile)
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
             ))}
 
           <div className="bg-white rounded-lg shadow p-6">
@@ -666,7 +605,7 @@ const SecurityTestingDashboard = () => {
               </div>
 
               <button className="w-full bg-green-500 text-white p-2 rounded hover:bg-green-600"
-              onClick={(e) => handleFinalReportSubmit(e)}
+                onClick={(e) => handleFinalReportSubmit(e)}
               >
                 Submit Final Report
               </button>
