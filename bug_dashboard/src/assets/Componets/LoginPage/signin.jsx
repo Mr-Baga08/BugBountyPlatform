@@ -1,4 +1,3 @@
-// bug_dashboard/src/assets/Componets/LoginPage/signin.jsx
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaRegMoon, FaSun } from "react-icons/fa";
@@ -38,32 +37,70 @@ const Signin = ({ setUserRole }) => {
     }
 
     try {
-      console.log(`Sending login to: ${API_BASE_URL}/auth/login`);
-      const response = await axios.post(`${API_BASE_URL}/auth/login`, { email, password });
+      // First try regular user login
+      const userLoginResponse = await tryUserLogin(email, password);
+      handleSuccessfulLogin(userLoginResponse);
+    } catch (userError) {
+      console.log("Regular user login failed, trying admin login...");
       
-      localStorage.setItem("token", response.data.token);
-      localStorage.setItem("userRole", response.data.user.role);
-      localStorage.setItem("userName", response.data.user.username);
-      localStorage.setItem("userEmail", response.data.user.email);
-      
-      setUserRole(response.data.user.role);
-      
-      if (response.data.user.role === "hunter") {
-        navigate("/hunter");
-      } else if (response.data.user.role === "coach") {
-        navigate("/coach");
-      } else if (response.data.user.role === "admin") {
-        navigate("/admin");
-      } else {
-        setMessage("Unknown role. Please contact support.");
+      try {
+        // If user login fails, try admin login
+        const adminLoginResponse = await tryAdminLogin(email, password);
+        handleSuccessfulLogin(adminLoginResponse);
+      } catch (adminError) {
+        // Both login attempts failed
+        const errorMessage = adminError.response?.data?.message || 
+                            userError.response?.data?.message || 
+                            "Login failed. Please check your credentials.";
+        
+        setMessage(errorMessage);
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error("Login error:", error);
-      setMessage(
-        error.response?.data?.message || 
-        "Login failed. Please check your credentials and try again."
-      );
-    } finally {
+    }
+  };
+
+  // Try to log in as a regular user (hunter or coach)
+  const tryUserLogin = async (email, password) => {
+    return await axios.post(`${API_BASE_URL}/auth/login`, { email, password });
+  };
+
+  // Try to log in as an admin
+  const tryAdminLogin = async (email, password) => {
+    return await axios.post(`${API_BASE_URL}/admin/login`, { email, password });
+  };
+
+  // Handle successful login response
+  const handleSuccessfulLogin = (response) => {
+    const data = response.data;
+    
+    // Store auth token
+    localStorage.setItem("token", data.token);
+    
+    // Determine user role and store it
+    const role = data.admin ? "admin" : (data.user ? data.user.role : null);
+    localStorage.setItem("userRole", role);
+    
+    // Store user info
+    if (data.user) {
+      localStorage.setItem("userName", data.user.username);
+      localStorage.setItem("userEmail", data.user.email);
+    } else if (data.admin) {
+      localStorage.setItem("userName", "Admin");
+      localStorage.setItem("userEmail", data.admin.email);
+    }
+    
+    // Set the role in the app state
+    setUserRole(role);
+    
+    // Navigate to the appropriate dashboard
+    if (role === "hunter") {
+      navigate("/hunter");
+    } else if (role === "coach") {
+      navigate("/coach");
+    } else if (role === "admin") {
+      navigate("/admin-dashboard");
+    } else {
+      setMessage("Unknown role. Please contact support.");
       setIsLoading(false);
     }
   };
