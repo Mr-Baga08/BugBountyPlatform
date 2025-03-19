@@ -24,8 +24,45 @@ dotenv.config();
 // Initialize Express App
 const app = express();
 
-// Connect to Database
-connectDB();
+
+
+// Explicitly adding CORS headers to every response
+app.use((req, res, next) => {
+  // Get origin from request headers
+  const origin = req.headers.origin;
+  
+  // Allow all origins in the allowedOrigins array
+  if (allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
+  
+  // Set other CORS headers
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  
+  // Handle preflight requests immediately
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  
+  next();
+});
+
+// Keep the regular CORS middleware as a backup
+app.use(cors({
+  origin: function(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      // During deployment, allow all origins temporarily
+      callback(null, true);
+      // Once everything is stable, you can reinstate strict CORS:
+      // callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+}));
 
 // Allowed Origins -  DYNAMIC from environment variable
 const allowedOrigins = process.env.ALLOWED_ORIGINS
@@ -69,6 +106,9 @@ app.options("*", cors(corsOptions));
 // Other Middleware
 app.use(express.json());
 app.use(bodyParser.json());
+
+// Connect to Database
+connectDB();
 
 // Routes (These are all fine)
 app.use("/api/auth", userRoutes);
