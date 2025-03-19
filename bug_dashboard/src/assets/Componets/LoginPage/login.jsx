@@ -1,3 +1,4 @@
+// bug_dashboard/src/assets/Componets/LoginPage/login.jsx
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaRegMoon, FaSun, FaUser, FaEnvelope, FaLock, FaUserTag } from "react-icons/fa";
@@ -41,6 +42,7 @@ const Register = ({ setUserRole }) => {
     }
 
     try {
+      console.log(`Sending registration to: ${API_BASE_URL}/auth/register`);
       const response = await axios.post(`${API_BASE_URL}/auth/register`, {
         username,
         email,
@@ -62,6 +64,7 @@ const Register = ({ setUserRole }) => {
       }, 5000);
       
     } catch (error) {
+      console.error("Registration error:", error);
       setMessage(
         error.response?.data?.message || 
         "Registration failed. Please try again with different credentials."
@@ -186,6 +189,7 @@ const Register = ({ setUserRole }) => {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
                     required
+                    minLength="6"
                     className="w-full pl-10 p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors duration-300"
                   />
                 </div>
