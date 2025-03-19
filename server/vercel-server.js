@@ -392,10 +392,13 @@ connectDB().catch(err => {
 const allowedOrigins = [
   "https://bug-bounty-platform-rmlo.vercel.app",
   "https://bug-bounty-platform.vercel.app",
-  "https://bug-bounty-platform-rmlo-git-main-mr-baga08s-projects.vercel.app",
-  "https://bug-bounty-platform-rmlo-kdolidgrp-mr-baga08s-projects.vercel.app",
-  "https://bug-bounty-platform-rmlo-92rrn91e9-mr-baga08s-projects.vercel.app",
-  "http://localhost:5173"
+  'https://bug-bounty-platform-frontend-v1.vercel.app',
+  'https://bug-bounty-platform-frontend-v1-git-main.vercel.app',
+  'https://bug-bounty-platform-rmlo.vercel.app',
+  'https://bug-bounty-platform.vercel.app',
+  "http://localhost:5173",
+    "bug-bounty-platform-frontend-v1-3tcc1hf0n-mr-baga08s-projects.vercel.app"
+    
 ];
 
 // Add origins from environment variable if available
