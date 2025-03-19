@@ -95,7 +95,7 @@ const createAdmin = async (req, res) => {
         const existingAdmin = await Admin.findOne({ email });
         if (existingAdmin) return res.status(400).json({ message: "Admin already exists" });
 
-        const hashedPassword = await bcrypt.hash(password, 10); // Hash password before saving
+        const hashedPassword = await bcrypt.hash(password, 19); // Hash password before saving
         const newAdmin = new Admin({ email, password: hashedPassword });
 
         await newAdmin.save();
