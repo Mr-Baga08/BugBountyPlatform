@@ -54,11 +54,11 @@ const SecurityTestingDashboard = () => {
   // Role selection state
   const [selectedRole, setSelectedRole] = useState("hunter");
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
-  // const role = localStorage.getItem('userRole')
+  const role = localStorage.getItem('userRole')
   const roles = [
-    { id: "Hunter", label: `View as Hunter` },
-    // { id: "coach", label: "View as Coach" },
-    // { id: "admin", label: "View as Admin" },
+    { id: "Hunter", label: "View as Hunter" },
+    { id: "coach", label: "View as Coach" },
+    { id: "admin", label: "View as Admin" },
   ];
 
   const fetchScripts = async () => {
