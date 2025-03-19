@@ -1,3 +1,4 @@
+// bug_dashboard/src/assets/Componets/LoginPage/signin.jsx
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaRegMoon, FaSun } from "react-icons/fa";
@@ -37,11 +38,13 @@ const Signin = ({ setUserRole }) => {
     }
 
     try {
+      console.log(`Sending login to: ${API_BASE_URL}/auth/login`);
       const response = await axios.post(`${API_BASE_URL}/auth/login`, { email, password });
       
       localStorage.setItem("token", response.data.token);
       localStorage.setItem("userRole", response.data.user.role);
       localStorage.setItem("userName", response.data.user.username);
+      localStorage.setItem("userEmail", response.data.user.email);
       
       setUserRole(response.data.user.role);
       
@@ -55,6 +58,7 @@ const Signin = ({ setUserRole }) => {
         setMessage("Unknown role. Please contact support.");
       }
     } catch (error) {
+      console.error("Login error:", error);
       setMessage(
         error.response?.data?.message || 
         "Login failed. Please check your credentials and try again."
