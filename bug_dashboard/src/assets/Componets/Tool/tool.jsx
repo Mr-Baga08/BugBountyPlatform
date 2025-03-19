@@ -36,7 +36,7 @@ const SecurityTestingDashboard = () => {
       try {
         // alert()
         const response = await fetch(
-          `API_BASE_URL + "/taskReview/allreview/${taskId}`
+          `${API_BASE_URL}/taskReview/allreview/${taskId}'
         );
         const data = await response.json();
         setReviewList(data.allTask);
