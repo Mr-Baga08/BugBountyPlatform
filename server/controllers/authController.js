@@ -5,15 +5,16 @@ const PendingUser = require("../models/PendingUser");
 const transporter = require("../config/email");
 require("dotenv").config();
 
-// ✅ Register User (Only Coach & Hunter)
 const registerUser = async (req, res) => {
     const { username, email, password, role } = req.body;
 
+    // Basic validation
     if (!username || !email || !password || !role) {
         return res.status(400).json({ message: "All fields are required" });
     }
 
     try {
+        // Role validation
         if (role !== "coach" && role !== "hunter") {
             return res.status(400).json({ message: "Only Coach and Hunter can register" });
         }
@@ -26,20 +27,10 @@ const registerUser = async (req, res) => {
             return res.status(400).json({ message: "Username already taken. Please choose a different username." });
         }
 
-        // Check if the user is already approved
+        // Check if the email is already registered
         const existingUser = await User.findOne({ email });
         if (existingUser) {
-            const isMatch = await bcrypt.compare(password, existingUser.password);
-            if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
-
-            if (!existingUser.isVerified) {
-                return res.status(403).json({ message: "User not approved by admin." });
-            }
-
-            const token = jwt.sign({ id: existingUser._id, role: existingUser.role }, process.env.JWT_SECRET, { expiresIn: "1h" });
-            const redirectUrl = existingUser.role === "coach" ? "/coach-dashboard" : "/hunter-dashboard";
-
-            return res.status(200).json({ token, user: existingUser, redirectUrl });
+            return res.status(400).json({ message: "Email already registered. Please use a different email or sign in." });
         }
 
         // Check if user is already pending approval
@@ -50,10 +41,22 @@ const registerUser = async (req, res) => {
 
         // Create a new pending user
         const hashedPassword = await bcrypt.hash(password, 10);
-        const newPendingUser = new PendingUser({ username, email, password: hashedPassword, role });
+        const newPendingUser = new PendingUser({ 
+            username, 
+            email, 
+            password: hashedPassword, 
+            role 
+        });
 
         await newPendingUser.save();
-        sendVerificationEmail(newPendingUser);
+        
+        // Try to send email notification but don't fail if it doesn't work
+        try {
+            sendVerificationEmail(newPendingUser);
+        } catch (emailError) {
+            console.error("Could not send verification email:", emailError);
+            // Continue with the registration process even if email fails
+        }
 
         return res.status(201).json({ message: "Registration request sent. Awaiting admin approval." });
 
@@ -62,7 +65,6 @@ const registerUser = async (req, res) => {
         return res.status(500).json({ message: "Internal server error." });
     }
 };
-
 // ✅ Approve User
 const approveUser = async (req, res) => {
     try {
