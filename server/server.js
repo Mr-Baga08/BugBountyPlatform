@@ -37,6 +37,7 @@ const allowedOrigins = [
   'https://bug-bounty-platform-frontend-v1-git-main.vercel.app',
   'https://bug-bounty-platform-rmlo.vercel.app',
   'https://bug-bounty-platform.vercel.app',
+  'bug-bounty-platform-frontend-v1-3tcc1hf0n-mr-baga08s-projects.vercel.app',
   // Add any other frontend domains
   
   // Local development
