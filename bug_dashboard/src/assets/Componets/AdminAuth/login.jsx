@@ -44,7 +44,7 @@ const AdminLogin = ({ setUserRole }) => {
       setMessage("Login successful! Redirecting...");
 
       // Redirect immediately after successful login
-      setTimeout(() => navigate("/admin/dashboard"), 1000);
+      setTimeout(() => navigate("/admin"), 1000);
 
     } catch (error) {
       console.error("Login error:", error);
