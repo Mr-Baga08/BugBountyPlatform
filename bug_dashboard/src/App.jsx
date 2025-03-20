@@ -13,6 +13,7 @@ import TaskDetails from "./assets/Componets/Task/task";
 import Task from './assets/Componets/Task/task';
 import { CoachView } from "./assets/Componets/Tool/coach-view";
 import LandingPageWrapper from "./assets/Componets/LandingPage/LandingPageWrapper.jsx";
+import AdminLogin from "./assets/Componets/AdminAuth/login.jsx";
 
 
 
@@ -29,6 +30,7 @@ function App() {
         <Route path="/" element={<LandingPageWrapper />} />
         <Route path="/login" element={<Login setUserRole={setUserRole} />} />
         <Route path="/signin" element={<Signin setUserRole={setUserRole} />} />   
+        <Route path="/admin/login" element={<AdminLogin setUserRole={setUserRole} />} />
         <Route path="/hunter" element={<Protected><Hunter/></Protected>} /> 
         <Route path="/coach" element={<Protected><Coach/></Protected>} />
         <Route path="/admin-dashboard" element={<Protected><AdminBoard/></Protected>} />

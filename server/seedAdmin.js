@@ -8,7 +8,7 @@ const Admin = require('./models/Admin');
 dotenv.config();
 
 // Connect to database
-mongoose.connect(process.env.MONGO_URI, {})
+mongoose.connect(process.env.MONGO_URI || "mongodb+srv://shreejitsen:yOuY23yEBzXvZo0T@bughuntplatform.nzxh0.mongodb.net/?retryWrites=true&w=majority&appName=BugHuntPlatform", {})
   .then(() => console.log('MongoDB connected'))
   .catch(err => {
     console.error('MongoDB connection error:', err);
@@ -27,7 +27,7 @@ const createAdmin = async () => {
     }
     
     // Hash password
-    const salt = await bcrypt.genSalt(19);
+    const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash('DerFuhrer@2025', salt);
     
     // Create new admin
