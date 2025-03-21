@@ -1,10 +1,9 @@
-// vercel-server.js - Optimized entry point for Vercel deployment
 const express = require("express");
 const cors = require("cors");
-const compression = require('compression');
 const bodyParser = require("body-parser");
 const dotenv = require("dotenv");
 const connectDB = require("./config/db");
+const compression = require("compression");
 
 // Import Routes
 const userRoutes = require("./routes/auth");
@@ -22,32 +21,11 @@ const taskImportRoutes = require("./routes/taskImportRoutes");
 // Load environment variables
 dotenv.config();
 
-// Create Express app
+// Initialize Express App
 const app = express();
 
-// Enable gzip compression for better performance
-app.use(compression());
-
-// Connect to Database (but don't crash if it fails initially)
-// Instead, ensure each route handler connects when needed
-app.use(async (req, res, next) => {
-  try {
-    // Only connect if not already connected
-    if (!global.mongoose?.conn) {
-      await connectDB();
-    }
-    next();
-  } catch (error) {
-    console.error('Request-time DB connection failed:', error);
-    res.status(500).json({ error: 'Database connection failed' });
-  }
-});
-// ============================================================================
-// CORS CONFIGURATION - CRITICAL FOR VERCEL DEPLOYMENTS
-// ============================================================================
-
-// Define all possible frontend origins
-const knownOrigins = [
+// Allowed Origins for CORS
+const allowedOrigins = [
   'https://bug-bounty-platform-frontend-v1.vercel.app',
   'https://bug-bounty-platform-frontend-v1-git-main.vercel.app',
   'https://bug-bounty-platform-rmlo.vercel.app',
@@ -58,88 +36,75 @@ const knownOrigins = [
 ];
 
 // Get additional origins from environment variables
-const envOrigins = process.env.ALLOWED_ORIGINS 
-  ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
-  : [];
+if (process.env.ALLOWED_ORIGINS) {
+  const envOrigins = process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim());
+  allowedOrigins.push(...envOrigins);
+}
 
-// Combine all origins
-const allowedOrigins = [...new Set([...knownOrigins, ...envOrigins])];
+// ✅ **CORS Middleware Setup**
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.log(`🛑 CORS blocked request from: ${origin}`);
+      callback(null, true); // Allow all origins in production temporarily
+      // In strict mode use: callback(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"]
+};
 
-// Log configured origins (helpful for debugging)
-console.log("CORS allowed origins:", allowedOrigins);
+// ✅ **Apply Middleware Before Routes**
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions)); // Handle Preflight Requests
+app.use(compression()); // Compression for better performance
+app.use(express.json());
+app.use(bodyParser.json());
 
-// Special handling for preflight requests - this must come BEFORE other middleware
-app.options('*', (req, res) => {
-  const origin = req.headers.origin;
-  
-  if (origin && allowedOrigins.includes(origin)) {
-    res.header('Access-Control-Allow-Origin', origin);
-  } else {
-    res.header('Access-Control-Allow-Origin', '*'); // Fallback for development
-  }
-  
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.header('Access-Control-Max-Age', '86400'); // 24 hours
-  
-  res.status(200).end();
+// ✅ **Log Incoming Requests (For Debugging)**
+app.use((req, res, next) => {
+  console.log(`📥 Request: ${req.method} ${req.url} from ${req.headers.origin || 'Unknown'}`);
+  next();
 });
 
-// Apply CORS headers to all responses
+// ✅ **Ensure CORS Headers Are Set for All Requests**
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  
   if (origin && allowedOrigins.includes(origin)) {
-    res.header('Access-Control-Allow-Origin', origin);
+    res.header("Access-Control-Allow-Origin", origin);
   } else {
-    res.header('Access-Control-Allow-Origin', '*'); // Fallback for development
+    res.header("Access-Control-Allow-Origin", "*"); // Fallback
   }
   
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+  res.header("Access-Control-Allow-Credentials", "true");
+
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
   
   next();
 });
 
-// Also use the cors middleware for additional safety
-app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, curl requests)
-    if (!origin) {
-      return callback(null, true);
+// ✅ **DB Connection Middleware - Connect for each request**
+app.use(async (req, res, next) => {
+  try {
+    // Only attempt to connect if not already connected
+    if (!global.mongoose?.conn) {
+      await connectDB();
     }
-    
-    // For deployment, temporarily allow all origins but log unexpected ones
-    if (!allowedOrigins.includes(origin)) {
-      console.log(`CORS: Origin not in allowed list: ${origin}`);
-    }
-    
-    // Allow all origins during development/testing
-    callback(null, true);
-    
-    // For stricter production settings, use:
-    // if (allowedOrigins.includes(origin)) {
-    //   callback(null, true);
-    // } else {
-    //   callback(new Error('Not allowed by CORS'));
-    // }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-}));
+    next();
+  } catch (error) {
+    console.error('Request-time DB connection error:', error.message);
+    res.status(500).json({ message: "Database connection error, please try again" });
+  }
+});
 
-// ============================================================================
-// REGULAR SERVER CONFIGURATION
-// ============================================================================
-
-// Standard middleware
-app.use(express.json());
-app.use(bodyParser.json());
-
-// API Routes
+// ✅ **Setup Routes**
 app.use("/api/auth", userRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/task", taskRoute);
@@ -162,7 +127,7 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-// CORS test endpoint - very helpful for debugging
+// CORS test endpoint - helpful for debugging
 app.get("/api/cors-test", (req, res) => {
   res.status(200).json({
     success: true,
@@ -176,31 +141,33 @@ app.get("/api/cors-test", (req, res) => {
   });
 });
 
-// Simple endpoint to get API version
-app.get("/api/version", (req, res) => {
-  res.status(200).json({
-    version: "1.0.0",
-    timestamp: new Date().toISOString()
-  });
-});
-
-// Root route
+// ✅ **Root Route**
 app.get("/", (req, res) => {
-  res.status(200).json({
-    message: "Bug Hunt Platform API",
-    health: "/api/health",
+  res.status(200).json({ 
+    message: "🚀 Bug Hunt Platform API",
+    documentation: "/api/health",
     corsTest: "/api/cors-test"
   });
 });
 
-// Global error handling middleware
+app.get("/api", (req, res) => {
+  res.status(200).json({ 
+    message: "Bug Hunt Platform API is running",
+    endpoints: {
+      auth: "/api/auth",
+      admin: "/api/admin",
+      tasks: "/api/task",
+      health: "/api/health"
+    }
+  });
+});
+
+// ✅ **Global Error Handler**
 app.use((err, req, res, next) => {
-  console.error("Global error:", err.message);
+  console.error("❌ Error:", err.message);
   res.status(500).json({
-    error: true,
-    message: err.message,
-    // Only show stack trace in development
-    ...(process.env.NODE_ENV !== 'production' && { stack: err.stack })
+    message: "Internal server error",
+    error: process.env.NODE_ENV === "development" ? err.message : undefined
   });
 });
 
@@ -212,11 +179,11 @@ app.use((req, res) => {
   });
 });
 
-// For local development only - Vercel uses the exported app
+// For local development - Vercel uses the exported app
 if (process.env.NODE_ENV !== 'production') {
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log(`🚀 Server running on port ${PORT}`);
   });
 }
 
