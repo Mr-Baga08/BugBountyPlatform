@@ -29,11 +29,19 @@ const app = express();
 app.use(compression());
 
 // Connect to Database (but don't crash if it fails initially)
-connectDB().catch(err => {
-  console.error("Initial database connection error:", err.message);
-  console.log("Will retry on subsequent requests");
+// Instead, ensure each route handler connects when needed
+app.use(async (req, res, next) => {
+  try {
+    // Only connect if not already connected
+    if (!global.mongoose?.conn) {
+      await connectDB();
+    }
+    next();
+  } catch (error) {
+    console.error('Request-time DB connection failed:', error);
+    res.status(500).json({ error: 'Database connection failed' });
+  }
 });
-
 // ============================================================================
 // CORS CONFIGURATION - CRITICAL FOR VERCEL DEPLOYMENTS
 // ============================================================================
