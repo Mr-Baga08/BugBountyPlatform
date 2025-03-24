@@ -1,0 +1,6 @@
+https://bug-hunt-platform-frontend.vercel.app
+https://bug-hunt-platform-frontend-mr-baga08s-projects.vercel.app
+https://bug-hunt-platform-frontend-mr-baga08-mr-baga08s-projects.vercel.app
+https://bug-hunt-platform-frontend-854fz5mjd-mr-baga08s-projects.vercel.app
+https://bug-hunt-platform-frontend-qzkzo2ig6-mr-baga08s-projects.vercel.app
+http://localhost:5173

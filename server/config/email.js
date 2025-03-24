@@ -1,7 +1,6 @@
-// server/config/email.js
-const nodemailer = require('nodemailer');
 const { EmailJSResponseStatus } = require('@emailjs/nodejs');
 const emailjs = require('@emailjs/nodejs');
+const nodemailer = require('nodemailer');
 require('dotenv').config();
 
 // Initialize EmailJS with your keys
@@ -10,7 +9,7 @@ emailjs.init({
   privateKey: process.env.EMAILJS_PRIVATE_KEY
 });
 
-// Fallback transporter using nodemailer (in case EmailJS fails)
+// Fallback transporter using nodemailer
 const transporter = nodemailer.createTransport({
   service: process.env.EMAIL_SERVICE || 'gmail',
   auth: {
@@ -27,7 +26,7 @@ const sendVerificationEmail = async (user) => {
       email: user.email,
       role: user.role,
       registration_time: new Date().toISOString(),
-      ip_address: 'Not available', // This would need to be passed from the controller
+      ip_address: 'Not available',
       admin_dashboard_link: `${process.env.FRONTEND_URL}/admin-dashboard`
     };
     
@@ -46,7 +45,7 @@ const sendVerificationEmail = async (user) => {
     // Fallback to nodemailer
     try {
       const mailOptions = {
-        from: process.env.EMAIL_USER,
+        from: process.env.EMAIL_USER || 'info@astraeusnextgen.com',
         to: process.env.ADMIN_EMAIL,
         subject: `[BugHuntPlatform] New User Registration: ${user.username}`,
         html: `
@@ -82,7 +81,7 @@ const sendApprovalEmail = async (user, isApproved) => {
       username: user.username,
       status: isApproved ? 'approved' : 'rejected',
       login_link: `${process.env.FRONTEND_URL}/signin`,
-      support_email: process.env.SUPPORT_EMAIL || process.env.EMAIL_USER,
+      support_email: process.env.SUPPORT_EMAIL || 'info@astraeusnextgen.com',
       rejection_reason: isApproved ? '' : 'Your application did not meet our current requirements.'
     };
     
@@ -101,7 +100,7 @@ const sendApprovalEmail = async (user, isApproved) => {
     // Fallback to nodemailer
     try {
       const mailOptions = {
-        from: process.env.EMAIL_USER,
+        from: process.env.EMAIL_USER || 'info@astraeusnextgen.com',
         to: user.email,
         subject: `[BugHuntPlatform] Your Registration Status Update`,
         html: isApproved ? 
@@ -119,7 +118,7 @@ const sendApprovalEmail = async (user, isApproved) => {
             <p>Dear ${user.username},</p>
             <p>Thank you for registering on the BugHuntPlatform, provided by AstraeusNextGen.</p>
             <p>Your registration status has been updated to: <strong>rejected</strong>.</p>
-            <p>Unfortunately, your registration has been rejected. Please contact our support team at ${process.env.SUPPORT_EMAIL || process.env.EMAIL_USER} if you have any questions.</p>
+            <p>Unfortunately, your registration has been rejected. Please contact our support team at ${process.env.SUPPORT_EMAIL || 'info@astraeusnextgen.com'} if you have any questions.</p>
             <p>We appreciate your interest in the BugHuntPlatform.</p>
             <p>Sincerely,</p>
             <p>The AstraeusNextGen Team</p>

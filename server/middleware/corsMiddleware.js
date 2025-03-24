@@ -1,23 +1,17 @@
+// Create a file named corsMiddleware.js
 const corsMiddleware = (req, res, next) => {
-  // Allow requests from any origin - we'll restrict this in production
+  // Allow all origins for now
   res.header('Access-Control-Allow-Origin', '*');
   
-  // Set allowed methods
+  // Set other CORS headers
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
   
-  // Set allowed headers
-  res.header('Access-Control-Allow-Headers', 
-    'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-API-Key');
-  
-  // Allow credentials
-  res.header('Access-Control-Allow-Credentials', 'true');
-  
-  // Handle preflight OPTIONS requests - this is critical!
+  // Handle preflight requests
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
   
-  // Continue to next middleware
   next();
 };
 

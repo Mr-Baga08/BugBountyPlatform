@@ -18,7 +18,6 @@ const videoRoutes = require("./routes/videoRoutes");
 const taskHistoryRoutes = require("./routes/taskHistoryRoutes");
 const taskLeaderboard = require("./routes/taskLeaderboard");
 const taskImportRoutes = require("./routes/taskImportRoutes");
-const corsTestRoutes = require("./routes/corsTestRoutes");
 
 // Load environment variables
 dotenv.config();
@@ -35,61 +34,61 @@ connectDB().catch(err => {
   console.log("Will retry on subsequent requests");
 });
 
-// ============================================================================
-// CORS CONFIGURATION - CRITICAL FOR CLOUD DEPLOYMENTS
-// ============================================================================
-
-// Define all possible frontend origins
-const knownOrigins = [
-  'https://bug-bounty-platform-frontend-v1.vercel.app',
-  'https://bug-bounty-platform-frontend-v1-git-main.vercel.app',
-  'https://bug-bounty-platform-rmlo.vercel.app',
-  'https://bug-bounty-platform.vercel.app',
-  'bug-bounty-platform-frontend-v1-3tcc1hf0n-mr-baga08s-projects.vercel.app',
-  'http://localhost:5173', // Local Development
-  'http://localhost:3000'
-];
-// Note: The above origins should be updated to match your actual deployment URLs
-
-// Get additional origins from environment variables
-const envOrigins = process.env.ALLOWED_ORIGINS 
+// Define allowed origins or use wildcard for development
+const allowedOrigins = process.env.ALLOWED_ORIGINS 
   ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
-  : [];
+  : ['*'];
 
-// Combine all origins
-const allowedOrigins = [...new Set([...knownOrigins, ...envOrigins])];
+console.log("CORS Allowed Origins:", allowedOrigins);
 
-// Log configured origins (helpful for debugging)
-console.log("CORS allowed origins:", allowedOrigins);
-
-// Special handling for preflight requests - this must come BEFORE other middleware
+// Handle preflight OPTIONS requests explicitly - critical for CORS
 app.options('*', (req, res) => {
+  // Get the origin from the request
   const origin = req.headers.origin;
   
-  if (origin && allowedOrigins.includes(origin)) {
+  // For development, or if ALLOWED_ORIGINS contains '*', allow all origins
+  if (allowedOrigins.includes('*')) {
+    res.header('Access-Control-Allow-Origin', '*');
+  } 
+  // Otherwise check if the origin is in the allowed list
+  else if (origin && allowedOrigins.includes(origin)) {
     res.header('Access-Control-Allow-Origin', origin);
-  } else {
-    res.header('Access-Control-Allow-Origin', '*'); // Fallback for development
+  }
+  // Default fallback - allow for development
+  else {
+    res.header('Access-Control-Allow-Origin', '*');
+    console.log(`Unrecognized origin in preflight: ${origin}`);
   }
   
+  // Set other CORS headers
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
   res.header('Access-Control-Allow-Credentials', 'true');
   res.header('Access-Control-Max-Age', '86400'); // 24 hours
   
+  // Send 200 response for OPTIONS method
   res.status(200).end();
 });
 
-// Apply CORS headers to all responses
+// CORS middleware for all other requests
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   
-  if (origin && allowedOrigins.includes(origin)) {
+  // For development, or if ALLOWED_ORIGINS contains '*', allow all origins
+  if (allowedOrigins.includes('*')) {
+    res.header('Access-Control-Allow-Origin', '*');
+  } 
+  // Otherwise check if the origin is in the allowed list
+  else if (origin && allowedOrigins.includes(origin)) {
     res.header('Access-Control-Allow-Origin', origin);
-  } else {
-    res.header('Access-Control-Allow-Origin', '*'); // Fallback for development
+  }
+  // Default fallback - allow for development
+  else {
+    res.header('Access-Control-Allow-Origin', '*');
+    console.log(`Unrecognized origin: ${origin}`);
   }
   
+  // Set other CORS headers
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
   res.header('Access-Control-Allow-Credentials', 'true');
@@ -105,32 +104,26 @@ app.use(cors({
       return callback(null, true);
     }
     
-    // For deployment, temporarily allow all origins but log unexpected ones
-    if (!allowedOrigins.includes(origin)) {
-      console.log(`CORS: Origin not in allowed list: ${origin}`);
+    if (allowedOrigins.includes('*')) {
+      callback(null, true);
+    } else if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.log(`CORS blocked origin: ${origin}`);
+      // Allow all origins during development/testing
+      callback(null, true);
     }
-    
-    // Allow all origins during development/testing
-    callback(null, true);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
-// ============================================================================
-// REGULAR SERVER CONFIGURATION
-// ============================================================================
-
 // Standard middleware
 app.use(express.json());
 app.use(bodyParser.json());
 
-// ============================================================================
-// HEALTH CHECK ENDPOINTS FOR GCP CLOUD RUN
-// ============================================================================
-
-// Cloud Run health check endpoint - This is the standard path Cloud Run expects
+// Health Check Endpoints for GCP Cloud Run
 app.get("/health", (req, res) => {
   res.status(200).json({
     status: "healthy",
@@ -151,41 +144,7 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-// Liveness probe - quick check without DB verification
-app.get("/livez", (req, res) => {
-  res.status(200).send("OK");
-});
-
-// Readiness probe - checks if ready for traffic
-app.get("/readyz", async (req, res) => {
-  try {
-    // Perform a quick DB connection check
-    await connectDB();
-    res.status(200).send("OK");
-  } catch (err) {
-    res.status(500).send("DB Connection Error");
-  }
-});
-
-// ============================================================================
-// API ROUTES
-// ============================================================================
-
-// API Routes
-app.use("/api/auth", userRoutes);
-app.use("/api/admin", adminRoutes);
-app.use("/api/task", taskRoute);
-app.use("/api/taskReview", taskReviewRoutes);
-app.use("/api/finalReport", finalReportRoutes);
-app.use("/api/texts", textRoutes);
-app.use("/api/videos", videoRoutes);
-app.use("/api/scripts", scriptRoutes);
-app.use("/api/task-history", taskHistoryRoutes);
-app.use("/api", taskLeaderboard);
-app.use("/api/task-import", taskImportRoutes);
-app.use("/api/cors-test", corsTestRoutes);
-
-// CORS test endpoint - very helpful for debugging
+// CORS test endpoint
 app.get("/api/cors-test", (req, res) => {
   res.status(200).json({
     success: true,
@@ -199,13 +158,18 @@ app.get("/api/cors-test", (req, res) => {
   });
 });
 
-// Simple endpoint to get API version
-app.get("/api/version", (req, res) => {
-  res.status(200).json({
-    version: "1.0.0",
-    timestamp: new Date().toISOString()
-  });
-});
+// API Routes
+app.use("/api/auth", userRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/task", taskRoute);
+app.use("/api/taskReview", taskReviewRoutes);
+app.use("/api/finalReport", finalReportRoutes);
+app.use("/api/texts", textRoutes);
+app.use("/api/videos", videoRoutes);
+app.use("/api/scripts", scriptRoutes);
+app.use("/api/task-history", taskHistoryRoutes);
+app.use("/api", taskLeaderboard);
+app.use("/api/task-import", taskImportRoutes);
 
 // Root route
 app.get("/", (req, res) => {
