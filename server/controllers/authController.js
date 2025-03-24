@@ -1,10 +1,64 @@
+// server/controllers/authController.js
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const PendingUser = require("../models/PendingUser");
-const transporter = require("../config/email");
+const { sendVerificationEmail, sendApprovalEmail } = require("../config/email");
 const connectDB = require("../config/db");
 require("dotenv").config();
+
+// ✅ Login User
+const loginUser = async (req, res) => {
+    // Ensure DB connection first
+    try {
+        await connectDB();
+    } catch (dbError) {
+        console.error("Database connection error in loginUser:", dbError);
+        return res.status(500).json({ message: "Database connection error. Please try again later." });
+    }
+
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+        return res.status(400).json({ message: "All fields are required" });
+    }
+
+    try {
+        const user = await User.findOne({ email });
+        if (!user) return res.status(404).json({ message: "User not found." });
+
+        if (!user.isVerified) {
+            return res.status(403).json({ message: "Your account is not approved yet." });
+        }
+
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return res.status(400).json({ message: "Invalid credentials" });
+        }
+
+        // Generate JWT token
+        const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: "1h" });
+        
+        // Redirect URL based on role
+        const redirectUrl = user.role === "coach" ? "/coach" : 
+                           user.role === "admin" ? "/admin-dashboard" : "/hunter";
+        
+        return res.status(200).json({ 
+            token, 
+            user: {
+                username: user.username,
+                email: user.email,
+                role: user.role,
+                id: user._id
+            }, 
+            redirectUrl 
+        });
+
+    } catch (error) {
+        console.error("Error during login:", error);
+        return res.status(500).json({ message: "Internal server error." });
+    }
+};
 
 // ✅ Register User (Only Coach & Hunter)
 const registerUser = async (req, res) => {
@@ -127,58 +181,6 @@ const approveUser = async (req, res) => {
     }
 };
 
-// ✅ Login User
-const loginUser = async (req, res) => {
-    // Ensure DB connection first
-    try {
-        await connectDB();
-    } catch (dbError) {
-        console.error("Database connection error in loginUser:", dbError);
-        return res.status(500).json({ message: "Database connection error. Please try again later." });
-    }
-
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-        return res.status(400).json({ message: "All fields are required" });
-    }
-
-    try {
-        const user = await User.findOne({ email });
-        if (!user) return res.status(404).json({ message: "User not found." });
-
-        if (!user.isVerified) {
-            return res.status(403).json({ message: "Your account is not approved yet." });
-        }
-
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) {
-            return res.status(400).json({ message: "Invalid credentials" });
-        }
-
-        // Generate JWT token
-        const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: "1h" });
-        
-        // Redirect URL based on role
-        const redirectUrl = user.role === "coach" ? "/coach-dashboard" : "/hunter-dashboard";
-        
-        return res.status(200).json({ 
-            token, 
-            user: {
-                username: user.username,
-                email: user.email,
-                role: user.role,
-                id: user._id
-            }, 
-            redirectUrl 
-        });
-
-    } catch (error) {
-        console.error("Error during login:", error);
-        return res.status(500).json({ message: "Internal server error." });
-    }
-};
-
 // ✅ Reject User
 const rejectUser = async (req, res) => {
     // Ensure DB connection first
@@ -260,40 +262,40 @@ const getHunterDashboard = async (req, res) => {
     }
 };
 
-// Email notification functions wrapped with proper error handling
-const sendVerificationEmail = async (user) => {
-    if (!process.env.EMAIL_USER || !process.env.ADMIN_EMAIL) {
-        throw new Error("Email configuration missing");
-    }
+// // Email notification functions wrapped with proper error handling
+// const sendVerificationEmail = async (user) => {
+//     if (!process.env.EMAIL_USER || !process.env.ADMIN_EMAIL) {
+//         throw new Error("Email configuration missing");
+//     }
 
-    const mailOptions = {
-        from: process.env.EMAIL_USER,
-        to: process.env.ADMIN_EMAIL,
-        subject: "New User Registration Approval Needed",
-        html: `<p>A new user has registered: ${user.username}</p>
-               <p><strong>Email:</strong> ${user.email}</p>
-               <p><strong>Role:</strong> ${user.role}</p>`
-    };
+//     const mailOptions = {
+//         from: process.env.EMAIL_USER,
+//         to: process.env.ADMIN_EMAIL,
+//         subject: "New User Registration Approval Needed",
+//         html: `<p>A new user has registered: ${user.username}</p>
+//                <p><strong>Email:</strong> ${user.email}</p>
+//                <p><strong>Role:</strong> ${user.role}</p>`
+//     };
     
-    return transporter.sendMail(mailOptions);
-};
+//     return transporter.sendMail(mailOptions);
+// };
 
-const sendApprovalEmail = async (user, isApproved) => {
-    if (!process.env.EMAIL_USER) {
-        throw new Error("Email configuration missing");
-    }
+// const sendApprovalEmail = async (user, isApproved) => {
+//     if (!process.env.EMAIL_USER) {
+//         throw new Error("Email configuration missing");
+//     }
 
-    const mailOptions = {
-        from: process.env.EMAIL_USER,
-        to: user.email,
-        subject: `Your Account Has Been ${isApproved ? "Approved" : "Rejected"}`,
-        text: isApproved
-            ? `Congratulations! Your account has been approved. You can now log in.`
-            : `Sorry, your account request has been rejected.`,
-    };
+//     const mailOptions = {
+//         from: process.env.EMAIL_USER,
+//         to: user.email,
+//         subject: `Your Account Has Been ${isApproved ? "Approved" : "Rejected"}`,
+//         text: isApproved
+//             ? `Congratulations! Your account has been approved. You can now log in.`
+//             : `Sorry, your account request has been rejected.`,
+//     };
     
-    return transporter.sendMail(mailOptions);
-};
+//     return transporter.sendMail(mailOptions);
+// };
 
 module.exports = { 
     registerUser, 
