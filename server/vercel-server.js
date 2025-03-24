@@ -1,4 +1,4 @@
-// vercel-server.js - Optimized entry point for Vercel deployment
+// vercel-server.js - Entry point for GCP Cloud Run deployment
 const express = require("express");
 const cors = require("cors");
 const compression = require('compression');
@@ -18,6 +18,7 @@ const videoRoutes = require("./routes/videoRoutes");
 const taskHistoryRoutes = require("./routes/taskHistoryRoutes");
 const taskLeaderboard = require("./routes/taskLeaderboard");
 const taskImportRoutes = require("./routes/taskImportRoutes");
+const corsTestRoutes = require("./routes/corsTestRoutes");
 
 // Load environment variables
 dotenv.config();
@@ -35,20 +36,20 @@ connectDB().catch(err => {
 });
 
 // ============================================================================
-// CORS CONFIGURATION - CRITICAL FOR VERCEL DEPLOYMENTS
+// CORS CONFIGURATION - CRITICAL FOR CLOUD DEPLOYMENTS
 // ============================================================================
 
 // Define all possible frontend origins
 const knownOrigins = [
-  // Production domains
-  "https://bug-bounty-platform-rmlo.vercel.app",
-  "https://bug-bounty-platform.vercel.app",
-  // Preview/development domains
-  "https://bug-bounty-platform-rmlo-git-main-mr-baga08s-projects.vercel.app",
-  "https://bug-bounty-platform-rmlo-kdolidgrp-mr-baga08s-projects.vercel.app",
-  // Local development
-  "http://localhost:5173"
+  'https://bug-bounty-platform-frontend-v1.vercel.app',
+  'https://bug-bounty-platform-frontend-v1-git-main.vercel.app',
+  'https://bug-bounty-platform-rmlo.vercel.app',
+  'https://bug-bounty-platform.vercel.app',
+  'bug-bounty-platform-frontend-v1-3tcc1hf0n-mr-baga08s-projects.vercel.app',
+  'http://localhost:5173', // Local Development
+  'http://localhost:3000'
 ];
+// Note: The above origins should be updated to match your actual deployment URLs
 
 // Get additional origins from environment variables
 const envOrigins = process.env.ALLOWED_ORIGINS 
@@ -111,13 +112,6 @@ app.use(cors({
     
     // Allow all origins during development/testing
     callback(null, true);
-    
-    // For stricter production settings, use:
-    // if (allowedOrigins.includes(origin)) {
-    //   callback(null, true);
-    // } else {
-    //   callback(new Error('Not allowed by CORS'));
-    // }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -132,6 +126,51 @@ app.use(cors({
 app.use(express.json());
 app.use(bodyParser.json());
 
+// ============================================================================
+// HEALTH CHECK ENDPOINTS FOR GCP CLOUD RUN
+// ============================================================================
+
+// Cloud Run health check endpoint - This is the standard path Cloud Run expects
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "healthy",
+    timestamp: new Date().toISOString(),
+    service: "bug-hunt-platform-api",
+    uptime: process.uptime()
+  });
+});
+
+// API-prefixed health check for API clients
+app.get("/api/health", (req, res) => {
+  res.status(200).json({
+    status: "healthy",
+    timestamp: new Date().toISOString(),
+    service: "bug-hunt-platform-api",
+    environment: process.env.NODE_ENV || "development",
+    uptime: process.uptime()
+  });
+});
+
+// Liveness probe - quick check without DB verification
+app.get("/livez", (req, res) => {
+  res.status(200).send("OK");
+});
+
+// Readiness probe - checks if ready for traffic
+app.get("/readyz", async (req, res) => {
+  try {
+    // Perform a quick DB connection check
+    await connectDB();
+    res.status(200).send("OK");
+  } catch (err) {
+    res.status(500).send("DB Connection Error");
+  }
+});
+
+// ============================================================================
+// API ROUTES
+// ============================================================================
+
 // API Routes
 app.use("/api/auth", userRoutes);
 app.use("/api/admin", adminRoutes);
@@ -144,16 +183,7 @@ app.use("/api/scripts", scriptRoutes);
 app.use("/api/task-history", taskHistoryRoutes);
 app.use("/api", taskLeaderboard);
 app.use("/api/task-import", taskImportRoutes);
-
-// Health check endpoint
-app.get("/api/health", (req, res) => {
-  res.status(200).json({
-    status: "ok",
-    message: "API is running",
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || "development"
-  });
-});
+app.use("/api/cors-test", corsTestRoutes);
 
 // CORS test endpoint - very helpful for debugging
 app.get("/api/cors-test", (req, res) => {
@@ -181,7 +211,7 @@ app.get("/api/version", (req, res) => {
 app.get("/", (req, res) => {
   res.status(200).json({
     message: "Bug Hunt Platform API",
-    health: "/api/health",
+    health: "/health",
     corsTest: "/api/cors-test"
   });
 });
@@ -205,13 +235,11 @@ app.use((req, res) => {
   });
 });
 
-// For local development only - Vercel uses the exported app
-if (process.env.NODE_ENV !== 'production') {
-  const PORT = process.env.PORT || 3000;
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-  });
-}
+// Start the server
+const PORT = process.env.PORT || 8080; // GCP Cloud Run provides PORT env variable
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
 
-// Export for Vercel serverless deployment
+// Export for serverless environments
 module.exports = app;
