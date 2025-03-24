@@ -1,4 +1,10 @@
 steps:
+  # Install dependencies
+  - name: 'node:18'
+    entrypoint: 'npm'
+    args: ['ci']
+    dir: 'server'
+  
   # Build the container image
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build', '-t', 'gcr.io/$PROJECT_ID/bug-hunt-backend', '.']
@@ -23,7 +29,7 @@ steps:
     - 'managed'
     - '--allow-unauthenticated'
     - '--port'
-    - '8080'
+    - '8081'
     - '--memory'
     - '512Mi'
     - '--cpu'
@@ -34,10 +40,6 @@ steps:
     - '10'
     - '--http-health-check-path'
     - '/health'
-    - '--set-secrets'
-    - 'MONGO_URI=MONGO_URI:latest,JWT_SECRET=JWT_SECRET:latest,EMAIL_USER=EMAIL_USER:latest,EMAIL_PASS=EMAIL_PASS:latest,ADMIN_EMAIL=ADMIN_EMAIL:latest'
-    - '--set-env-vars'
-    - 'NODE_ENV=production,ALLOWED_ORIGINS=https://your-app-name.vercel.app,https://your-app-name-git-main.vercel.app'
 
 images:
   - 'gcr.io/$PROJECT_ID/bug-hunt-backend'

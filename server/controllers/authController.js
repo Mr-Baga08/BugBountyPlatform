@@ -9,6 +9,7 @@ require("dotenv").config();
 
 // ✅ Login User
 const loginUser = async (req, res) => {
+    console.log("loginUser called with:", req.body);
     // Ensure DB connection first
     try {
         await connectDB();
@@ -298,11 +299,6 @@ const getHunterDashboard = async (req, res) => {
 // };
 
 module.exports = { 
-    registerUser, 
-    approveUser, 
-    loginUser, 
-    getCoachDashboard, 
-    getHunterDashboard, 
-    rejectUser, 
-    getPendingUsers 
-};
+    
+    registerUser, approveUser, loginUser, getCoachDashboard, getHunterDashboard, rejectUser, getPendingUsers 
+  };

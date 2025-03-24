@@ -14,6 +14,7 @@ import Task from './assets/Componets/Task/task';
 import { CoachView } from "./assets/Componets/Tool/coach-view";
 import LandingPageWrapper from "./assets/Componets/LandingPage/LandingPageWrapper.jsx";
 import AdminLogin from "./assets/Componets/AdminAuth/login.jsx";
+import AdminRegister from "./assets/Componets/AdminAuth/register.jsx";
 
 
 
@@ -27,6 +28,7 @@ function App() {
   return (
     <Router>
       <Routes>
+        
         <Route path="/" element={<LandingPageWrapper />} />
         <Route path="/login" element={<Login setUserRole={setUserRole} />} />
         <Route path="/signin" element={<Signin setUserRole={setUserRole} />} />   
@@ -41,6 +43,7 @@ function App() {
         <Route path="/tool-admin/:taskId" element={<CoachView userRole={"admin"}/>} />
         <Route path="/task-details/:taskId" element={<TaskDetails />} />
         <Route path="/Leaderboard" element={<Leaderboard />} />
+        <Route path="/admin/register" element={<AdminRegister />} />
       </Routes>
     </Router>
   );

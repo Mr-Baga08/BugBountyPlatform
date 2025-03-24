@@ -3,10 +3,12 @@ const jwt = require("jsonwebtoken");
 const Admin = require("../models/Admin");
 const connectDB = require("../config/db");
 
+
 const SALT_ROUNDS = 10;
 
 // ✅ Admin Login
 const loginAdmin = async (req, res) => {
+    console.log("loginAdmin called with:", req.body);
     try {
         const { email, password } = req.body;
         if (!email || !password) {
