@@ -1,8 +1,7 @@
-// Create a new file: bug_dashboard/src/assets/Componets/Task/TaskDetail.jsx
-
+// bug_dashboard/src/assets/Componets/Task/TaskDetail.jsx
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, FileText, Clock, User } from 'lucide-react';
+import { ChevronLeft, FileText, Clock, User, Globe } from 'lucide-react';
 import AppLayout from '../../../App/Common/Layout/AppLayout';
 import API_BASE_URL from '../AdminDashboard/config';
 
@@ -24,8 +23,10 @@ const TaskDetail = () => {
           return;
         }
 
-        // First try to fetch from statusFetch endpoint which we know exists
-        const response = await fetch(`${API_BASE_URL}/task/statusFetch/All?taskId=${taskId}`, {
+        console.log("Fetching task details for:", taskId);
+        console.log("API URL:", `${API_BASE_URL}/task/${taskId}`);
+
+        const response = await fetch(`${API_BASE_URL}/task/${taskId}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -34,15 +35,15 @@ const TaskDetail = () => {
         });
 
         if (!response.ok) {
-          throw new Error('Failed to fetch task details');
+          console.error("API Response Error:", response.status, response.statusText);
+          const errorText = await response.text();
+          console.error("Error Details:", errorText);
+          throw new Error(`Failed to fetch task details: ${response.status} ${response.statusText}`);
         }
 
         const data = await response.json();
-        if (data.tasks && data.tasks.length > 0) {
-          setTask(data.tasks[0]);
-        } else {
-          throw new Error('Task not found');
-        }
+        console.log("Fetched Task Data:", data);
+        setTask(data);
       } catch (err) {
         console.error('Error fetching task details:', err);
         setError(err.message);
@@ -58,7 +59,7 @@ const TaskDetail = () => {
 
   if (loading) {
     return (
-      <AppLayout title="Task Details">
+      <AppLayout>
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
         </div>
@@ -68,7 +69,7 @@ const TaskDetail = () => {
 
   if (error) {
     return (
-      <AppLayout title="Task Details">
+      <AppLayout>
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
           <h2 className="text-red-800 font-medium">Error Loading Task</h2>
           <p className="text-red-600">{error}</p>
@@ -85,7 +86,7 @@ const TaskDetail = () => {
 
   if (!task) {
     return (
-      <AppLayout title="Task Details">
+      <AppLayout>
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
           <h2 className="text-yellow-800 font-medium">Task Not Found</h2>
           <p className="text-yellow-600">The requested task could not be found.</p>
@@ -101,7 +102,7 @@ const TaskDetail = () => {
   }
 
   return (
-    <AppLayout title={`Task: ${task.taskId}`}>
+    <AppLayout>
       <div className="mb-4">
         <button 
           onClick={() => navigate(-1)} 
@@ -149,6 +150,7 @@ const TaskDetail = () => {
                 {task.DomainLink && (
                   <div>
                     <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+                      <Globe className="w-4 h-4 mr-2" />
                       <span className="font-medium">Domain Link:</span>
                     </div>
                     <div className="mt-1">
@@ -167,6 +169,7 @@ const TaskDetail = () => {
                 {task.toolLink && (
                   <div>
                     <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+                      <FileText className="w-4 h-4 mr-2" />
                       <span className="font-medium">Tool Link:</span>
                     </div>
                     <div className="mt-1">
@@ -185,6 +188,7 @@ const TaskDetail = () => {
                 {task.Batch && (
                   <div>
                     <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+                      <FileText className="w-4 h-4 mr-2" />
                       <span className="font-medium">Batch:</span>
                     </div>
                     <div className="mt-1 text-gray-900 dark:text-white">{task.Batch}</div>

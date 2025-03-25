@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaRegMoon, FaSun, FaEnvelope, FaLock } from "react-icons/fa";
+import { FaRegMoon, FaSun, FaEnvelope, FaLock, FaEye, FaEyeSlash } from "react-icons/fa";
 import axios from "axios";
 import API_BASE_URL from "../AdminDashboard/config";
 
@@ -11,6 +11,7 @@ const AdminLogin = ({ setUserRole }) => {
   const [message, setMessage] = useState("");
   const [isSuccess, setIsSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [darkMode, setDarkMode] = useState(localStorage.getItem("darkMode") === "true");
 
   useEffect(() => {
@@ -20,35 +21,55 @@ const AdminLogin = ({ setUserRole }) => {
 
   const toggleDarkMode = () => setDarkMode((prev) => !prev);
 
+  const validateEmail = (email) => {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(String(email).toLowerCase());
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage("");
     setIsSuccess(false);
     setIsLoading(true);
 
+    // Enhanced validation
     if (!email || !password) {
       setMessage("Please fill in all fields");
       setIsLoading(false);
       return;
     }
 
+    if (!validateEmail(email)) {
+      setMessage("Please enter a valid email address");
+      setIsLoading(false);
+      return;
+    }
+
     try {
       console.log(`Sending login request to: ${API_BASE_URL}/admin/login`);
-      const response = await axios.post(`${API_BASE_URL}/admin/login`, { email, password });
+      const response = await axios.post(`${API_BASE_URL}/admin/login`, { 
+        email: email.trim(), 
+        password 
+      });
 
       // Store the token and update the user role
       localStorage.setItem("token", response.data.token);
+      localStorage.setItem("userRole", "admin");
       setUserRole("admin");
 
       setIsSuccess(true);
       setMessage("Login successful! Redirecting...");
 
       // Redirect immediately after successful login
-      setTimeout(() => navigate("/admin"), 1000);
+      setTimeout(() => navigate("/admin-dashboard"), 1000);
 
     } catch (error) {
       console.error("Login error:", error);
-      setMessage(error.response?.data?.message || "Login failed. Please check your credentials.");
+      const errorMessage = error.response?.data?.message || 
+        error.response?.data?.details || 
+        "Login failed. Please check your credentials.";
+      
+      setMessage(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -60,7 +81,7 @@ const AdminLogin = ({ setUserRole }) => {
         <div className="bg-white dark:bg-gray-800 shadow-xl rounded-lg overflow-hidden transition-all duration-300">
           {/* Header */}
           <div className="flex justify-between items-center px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white transition-colors duration-300">Astraeus</h2>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white transition-colors duration-300">Astraeus Next Gen Admin</h2>
             <button
               className="p-2 rounded-full bg-gray-100 dark:bg-gray-700 transition-colors duration-300"
               onClick={toggleDarkMode}
@@ -73,7 +94,11 @@ const AdminLogin = ({ setUserRole }) => {
           <div className="p-6">
             {/* Alert Message */}
             {message && (
-              <div className={`mb-4 p-3 border rounded-md ${isSuccess ? "bg-green-100 border-green-400 text-green-700" : "bg-red-100 border-red-400 text-red-700"}`}>
+              <div className={`mb-4 p-3 border rounded-md ${
+                isSuccess 
+                  ? "bg-green-100 border-green-400 text-green-700" 
+                  : "bg-red-100 border-red-400 text-red-700"
+              }`}>
                 {message}
               </div>
             )}
@@ -93,7 +118,7 @@ const AdminLogin = ({ setUserRole }) => {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="name@example.com"
+                    placeholder="admin@example.com"
                     required
                     className="w-full pl-10 p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors duration-300"
                   />
@@ -110,14 +135,22 @@ const AdminLogin = ({ setUserRole }) => {
                     <FaLock className="h-5 w-5 text-gray-400" />
                   </div>
                   <input
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
                     required
                     minLength="6"
-                    className="w-full pl-10 p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors duration-300"
+                    className="w-full pl-10 pr-10 p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors duration-300"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <FaEyeSlash /> : <FaEye />}
+                  </button>
                 </div>
               </div>
 
@@ -125,7 +158,9 @@ const AdminLogin = ({ setUserRole }) => {
               <button
                 type="submit"
                 disabled={isLoading || isSuccess}
-                className={`w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${isLoading || isSuccess ? "opacity-70 cursor-not-allowed" : ""}`}
+                className={`w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                  isLoading || isSuccess ? "opacity-70 cursor-not-allowed" : ""
+                }`}
               >
                 {isLoading ? (
                   <span className="flex items-center justify-center">

@@ -29,7 +29,7 @@ steps:
     - 'managed'
     - '--allow-unauthenticated'
     - '--port'
-    - '8081'
+    - '8080'  # Cloud Run typically uses 8080
     - '--memory'
     - '512Mi'
     - '--cpu'
@@ -40,7 +40,6 @@ steps:
     - '10'
     - '--http-health-check-path'
     - '/health'
-
 images:
   - 'gcr.io/$PROJECT_ID/bug-hunt-backend'
 

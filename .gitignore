@@ -8,3 +8,11 @@ bug_dashboard/.env*
 
 server/.env*
 !server/.env.example
+
+/home/mrunal/Documents/BugHuntPlatform/BugBountyPlatform/VERCEL_DEPLOYMENT.md
+/home/mrunal/Documents/BugHuntPlatform/BugBountyPlatform/deploy-to-vercel.sh
+/home/mrunal/Documents/BugHuntPlatform/BugBountyPlatform/deploy-bugdashboard.sh
+/home/mrunal/Documents/BugHuntPlatform/BugBountyPlatform/server/uploads
+/home/mrunal/Documents/BugHuntPlatform/BugBountyPlatform/.env.example
+/home/mrunal/Documents/BugHuntPlatform/BugBountyPlatform/server/seedAdmin.js
+/home/mrunal/Documents/BugHuntPlatform/BugBountyPlatform/server/debugAdmin.js

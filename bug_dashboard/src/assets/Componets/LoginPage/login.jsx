@@ -80,7 +80,7 @@ const Register = ({ setUserRole }) => {
         <div className="bg-white dark:bg-gray-800 shadow-xl rounded-lg overflow-hidden transition-all duration-300">
           {/* Header */}
           <div className="flex justify-between items-center px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white transition-colors duration-300">Astraeus</h2>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white transition-colors duration-300">Astraeus Next Gen<span className="font-thin"> BugHuntPlatform</span></h2>
             <button
               className="p-2 rounded-full bg-gray-100 dark:bg-gray-700 transition-colors duration-300"
               onClick={toggleDarkMode}

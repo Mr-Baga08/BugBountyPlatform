@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Search, Edit, Eye } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../Appbar/NavBar";
+import API_BASE_URL from '../../../../assets/Componets/AdminDashboard/config';
 
 export default function TaskDisplayView({ title, role }) {
   const [isDarkMode, setIsDarkMode] = useState(
@@ -46,6 +47,11 @@ export default function TaskDisplayView({ title, role }) {
     navigate(`/tool/${taskId}`);
   };
 
+  // Handle task detail click
+  const handleTaskClick = (taskId) => {
+    navigate(`/task/${taskId}`);
+  };
+
   // Fetch tasks on component mount
   useEffect(() => {
     const fetchTasks = async () => {
@@ -55,7 +61,7 @@ export default function TaskDisplayView({ title, role }) {
           throw new Error("No authentication token found");
         }
 
-        const response = await fetch("http://localhost:3000/api/task", {
+        const response = await fetch(`${API_BASE_URL}/task`, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
@@ -135,7 +141,7 @@ export default function TaskDisplayView({ title, role }) {
   const handleStatusChange = async (newStatus, taskId) => {
     try {
       const response = await fetch(
-        `http://localhost:3000/api/task/update-status/${taskId}`,
+        `${API_BASE_URL}/task/update-status/${taskId}`,
         {
           method: "PATCH",
           headers: {
@@ -187,11 +193,11 @@ export default function TaskDisplayView({ title, role }) {
   return (
     <div className={isDarkMode ? "dark" : ""}>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
-        <Navbar 
+        {/* <Navbar 
           title={title} 
           isDarkMode={isDarkMode}
           toggleDarkMode={toggleDarkMode}
-        />
+        /> */}
 
         <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 transition-colors duration-300">
@@ -289,8 +295,13 @@ export default function TaskDisplayView({ title, role }) {
                         key={task._id} 
                         className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-150"
                       >
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                          {task.taskId}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span
+                            className="text-blue-600 dark:text-blue-400 hover:underline cursor-pointer font-medium"
+                            onClick={() => handleTaskClick(task._id)}
+                          >
+                            {task.taskId}
+                          </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
                           {task.projectName}

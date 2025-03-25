@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { ChevronDown, Upload, Plus } from "lucide-react";
+import { ChevronDown, Upload, Plus, FileText, Video, X, BookOpen } from "lucide-react";
 import axios from "axios";
 import { useLocation, useParams } from "react-router-dom";
 import API_BASE_URL from '../AdminDashboard/config';
@@ -29,6 +29,14 @@ const SecurityTestingDashboard = () => {
     category: "",
     code: "",
   });
+  
+  // Resources panel state
+  const [showResources, setShowResources] = useState(false);
+  const [resources, setResources] = useState({ texts: [], videos: [] });
+  const [resourceType, setResourceType] = useState("text"); // "text" or "video"
+  const [selectedResource, setSelectedResource] = useState(null);
+  const [resourceSearchTerm, setResourceSearchTerm] = useState("");
+  const [isResourcesLoading, setIsResourcesLoading] = useState(false);
 
   useEffect(() => {
     const fetchTaskReview = async () => {
@@ -75,26 +83,31 @@ const SecurityTestingDashboard = () => {
     fetchScripts();
   }, []);
 
-  const [resources, setResources] = useState([]);
-
+  // Fetch resource data when the resources panel is opened
   useEffect(() => {
-    const fetchResources = async () => {
-      try {
-        const [texts, videos] = await Promise.all([
-          fetch(`${API_BASE_URL}/texts`).then((res) => res.json()).catch(() => []),
-          fetch(`${API_BASE_URL}/videos`).then((res) => res.json()).catch(() => []),
-        ]);
+    if (showResources) {
+      fetchResources();
+    }
+  }, [showResources]);
 
-        console.log("Fetched Texts:", texts);
-        console.log("Fetched Videos:", videos);
-        setResources([...texts, ...videos]);
-      } catch (err) {
-        console.error("Error fetching resources:", err);
-      }
-    };
-
-    fetchResources();
-  }, []);
+  const fetchResources = async () => {
+    setIsResourcesLoading(true);
+    try {
+      const [textResponse, videoResponse] = await Promise.all([
+        axios.get(`${API_BASE_URL}/texts`),
+        axios.get(`${API_BASE_URL}/videos`)
+      ]);
+      
+      setResources({
+        texts: textResponse.data || [],
+        videos: videoResponse.data || []
+      });
+    } catch (error) {
+      console.error("Error fetching resources:", error);
+    } finally {
+      setIsResourcesLoading(false);
+    }
+  };
 
   // Filter the fetched scripts based on search term
   const filteredScripts = dbScripts.filter((script) => {
@@ -105,6 +118,16 @@ const SecurityTestingDashboard = () => {
       act.toLowerCase().includes(searchTerm.toLowerCase())
     );
   });
+
+  // Filter resources based on search term
+  const filteredResources = resourceType === "text" 
+    ? resources.texts.filter(doc => 
+        doc.title.toLowerCase().includes(resourceSearchTerm.toLowerCase()) ||
+        doc.content.toLowerCase().includes(resourceSearchTerm.toLowerCase())
+      )
+    : resources.videos.filter(video => 
+        video.title.toLowerCase().includes(resourceSearchTerm.toLowerCase())
+      );
 
   // Handle input changes for the new script form
   const handleNewScriptInputChange = (e) => {
@@ -306,6 +329,13 @@ const SecurityTestingDashboard = () => {
     }
   };
   
+  // Toggle resources panel
+  const toggleResourcesPanel = () => {
+    setShowResources(!showResources);
+    if (!showResources && resources.texts.length === 0 && resources.videos.length === 0) {
+      fetchResources();
+    }
+  };
 
   return (
     <div className="max-w-6xl mx-auto p-4">
@@ -323,6 +353,20 @@ const SecurityTestingDashboard = () => {
         {/* Role Selector and Status */}
         <div className="flex items-center gap-4">
           <span className="text-blue-500">{}</span>
+          
+          {/* Help Resources Button */}
+          <button
+            className={`px-4 py-2 flex items-center gap-2 ${
+              showResources 
+                ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+            } border rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-200`}
+            onClick={toggleResourcesPanel}
+          >
+            <BookOpen className="h-5 w-5" />
+            {showResources ? "Hide Resources" : "View Resources"}
+          </button>
+          
           <div className="relative">
             <button
               className="flex items-center gap-2 px-4 py-2 bg-white border rounded-lg shadow-sm hover:bg-gray-50"
@@ -356,112 +400,261 @@ const SecurityTestingDashboard = () => {
         </div>
       </div>
 
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Left Column: Help & Resources with New Script Form */}
-          <div className="space-y-6">
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold mb-4">Help & Resources</h2>
+      {/* Resources Panel (Slide-in panel from the right) */}
+      {showResources && (
+        <div className="fixed inset-y-0 right-0 w-full sm:w-96 bg-white dark:bg-gray-800 shadow-xl z-40 transition-transform transform-gpu duration-300 overflow-y-auto">
+          <div className="p-4">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Learning Resources</h2>
+              <button 
+                onClick={toggleResourcesPanel}
+                className="p-1 rounded-full text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            {/* Resource Type Tabs */}
+            <div className="flex border-b border-gray-200 dark:border-gray-700 mb-4">
+              <button
+                className={`py-2 px-4 font-medium text-sm border-b-2 ${
+                  resourceType === "text"
+                    ? "border-blue-500 text-blue-600 dark:text-blue-400"
+                    : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                }`}
+                onClick={() => {
+                  setResourceType("text");
+                  setSelectedResource(null);
+                }}
+              >
+                <FileText className="h-4 w-4 inline-block mr-1" />
+                Documentation
+              </button>
+              <button
+                className={`py-2 px-4 font-medium text-sm border-b-2 ${
+                  resourceType === "video"
+                    ? "border-blue-500 text-blue-600 dark:text-blue-400"
+                    : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                }`}
+                onClick={() => {
+                  setResourceType("video");
+                  setSelectedResource(null);
+                }}
+              >
+                <Video className="h-4 w-4 inline-block mr-1" />
+                Video Tutorials
+              </button>
+            </div>
+            
+            {/* Search Box */}
+            <div className="relative mb-4">
+              <input
+                type="text"
+                placeholder="Search resources..."
+                value={resourceSearchTerm}
+                onChange={(e) => setResourceSearchTerm(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              />
+            </div>
+            
+            {/* Resources Content */}
+            {isResourcesLoading ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+              </div>
+            ) : selectedResource ? (
+              <div>
+                <button
+                  onClick={() => setSelectedResource(null)}
+                  className="text-blue-600 dark:text-blue-400 hover:underline mb-4 flex items-center"
+                >
+                  ← Back to list
+                </button>
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                    {selectedResource.title}
+                  </h3>
+                  <div className="prose dark:prose-invert max-w-none text-gray-800 dark:text-gray-200">
+                    {selectedResource.content && selectedResource.content.split('\n').map((paragraph, i) => (
+                      <p key={i} className="mb-3">{paragraph}</p>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
               <div className="space-y-4">
-                {/* Testing Scripts Dropdown */}
-                <div className="border rounded-lg">
-                  <button
-                    className="w-full p-3 flex items-center justify-between hover:bg-gray-50"
-                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  >
-                    <span>Standard Testing Scripts</span>
-                    <ChevronDown
-                      className={`h-4 w-4 transform transition-transform ${isDropdownOpen ? "rotate-180" : ""
-                        }`}
-                    />
-                  </button>
-                  {isDropdownOpen && (
-                    <div className="border-t p-3">
-                      {/* Search Bar for Dropdown */}
-                      <input
-                        type="text"
-                        placeholder="Search scripts..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full p-2 border rounded mb-3"
-                      />
-                      {filteredScripts.length > 0 ? (
-                        filteredScripts.map((script) => (
-                          <div key={script._id} className="mb-1">
-                           <button onClick={() => setScript(script)}>
-                            <div className="mb-2">
-                              <div className="font-bold">{script.category}</div>
-                              <div className="ml-2">{script.activity}</div>
-                            </div>
-                           </button>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-gray-500">No scripts available</p>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                <div className="p-4 max-w-3xl mx-auto">
-                  <h1 className="text-xl font-semibold mb-2">📚 Documentation & Tutorials</h1>
-                  {resources.length === 0 ? (
-                    <p className="text-gray-500 text-sm">Loading resources...</p>
+                {resourceType === "text" ? (
+                  filteredResources.length > 0 ? (
+                    filteredResources.map(doc => (
+                      <div 
+                        key={doc._id} 
+                        onClick={() => setSelectedResource(doc)}
+                        className="p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
+                      >
+                        <h3 className="font-medium text-gray-900 dark:text-white mb-1">{doc.title}</h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+                          {doc.content.substring(0, 100)}...
+                        </p>
+                      </div>
+                    ))
                   ) : (
-                    <div className="grid gap-3">
-                      {resources.map((resource) => (
-                        <div key={resource._id} className="p-3 shadow-sm border border-gray-300 rounded-md bg-white">
-                          <a
-                            href={resource.content}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-base font-medium text-blue-600 hover:underline"
-                          >
-                            {resource.title}
-                          </a>
-                          <p className="text-xs text-gray-600">{resource.description}</p>
-                        </div>
-                      ))}
+                    <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                      No documentation available
                     </div>
-                  )}
-                </div>  
+                  )
+                ) : (
+                  filteredResources.length > 0 ? (
+                    filteredResources.map(video => (
+                      <div 
+                        key={video._id} 
+                        className="p-3 border border-gray-200 dark:border-gray-700 rounded-lg"
+                      >
+                        <h3 className="font-medium text-gray-900 dark:text-white mb-2">{video.title}</h3>
+                        <a 
+                          href={video.url} 
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center text-blue-600 hover:text-blue-800 dark:text-blue-400"
+                        >
+                          <Video className="h-4 w-4 mr-1" />
+                          Watch Tutorial
+                        </a>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                      No video tutorials available
+                    </div>
+                  )
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
-                {/* Add New Script Form */}
-                <div className="space-y-4">
-                  <h3 className="font-medium">Add New Script</h3>
-                  <input
-                    type="text"
-                    name="name"
-                    placeholder="Script Name"
-                    className="w-full p-2 border rounded"
-                    value={newScript.name}
-                    onChange={handleNewScriptInputChange}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Left Column: Help & Resources with New Script Form */}
+        <div className="space-y-6">
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-semibold mb-4">Help & Resources</h2>
+            <div className="space-y-4">
+              {/* Testing Scripts Dropdown */}
+              <div className="border rounded-lg">
+                <button
+                  className="w-full p-3 flex items-center justify-between hover:bg-gray-50"
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                >
+                  <span>Standard Testing Scripts</span>
+                  <ChevronDown
+                    className={`h-4 w-4 transform transition-transform ${isDropdownOpen ? "rotate-180" : ""
+                      }`}
                   />
-                  <input
-                    type="text"
-                    name="category"
-                    placeholder="Category"
-                    className="w-full p-2 border rounded"
-                    value={newScript.category}
-                    onChange={handleNewScriptInputChange}
-                  />
-                  <textarea
-                    name="code"
-                    placeholder="Script Code"
-                    className="w-full p-2 border rounded min-h-[100px]"
-                    value={newScript.code}
-                    onChange={handleNewScriptInputChange}
-                  />
-                  <button
-                    className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
-                    onClick={handleAddNewScript}
-                  >
-                    Add Script
-                  </button>
-                </div>
+                </button>
+                {isDropdownOpen && (
+                  <div className="border-t p-3">
+                    {/* Search Bar for Dropdown */}
+                    <input
+                      type="text"
+                      placeholder="Search scripts..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full p-2 border rounded mb-3"
+                    />
+                    {filteredScripts.length > 0 ? (
+                      filteredScripts.map((script) => (
+                        <div key={script._id} className="mb-1">
+                         <button onClick={() => setScript(script)}>
+                          <div className="mb-2">
+                            <div className="font-bold">{script.category}</div>
+                            <div className="ml-2">{script.activity}</div>
+                          </div>
+                         </button>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-gray-500">No scripts available</p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="p-4 max-w-3xl mx-auto">
+                <h1 className="text-xl font-semibold mb-2">📚 Documentation & Tutorials</h1>
+                {isResourcesLoading ? (
+                  <p className="text-gray-500 text-sm">Loading resources...</p>
+                ) : (resources.texts.length === 0 && resources.videos.length === 0) ? (
+                  <p className="text-gray-500 text-sm">No resources available</p>
+                ) : (
+                  <div className="grid gap-3">
+                    {resources.texts.map((resource) => (
+                      <div key={resource._id} className="p-3 shadow-sm border border-gray-300 rounded-md bg-white">
+                        <button
+                          onClick={() => {
+                            setResourceType("text");
+                            setSelectedResource(resource);
+                            setShowResources(true);
+                          }}
+                          className="text-base font-medium text-blue-600 hover:underline text-left"
+                        >
+                          {resource.title}
+                        </button>
+                        <p className="text-xs text-gray-600 mt-1">Documentation</p>
+                      </div>
+                    ))}
+                    {resources.videos.map((resource) => (
+                      <div key={resource._id} className="p-3 shadow-sm border border-gray-300 rounded-md bg-white">
+                        <a
+                          href={resource.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-base font-medium text-blue-600 hover:underline"
+                        >
+                          {resource.title}
+                        </a>
+                        <p className="text-xs text-gray-600 mt-1">Video Tutorial</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>  
+
+              {/* Add New Script Form */}
+              <div className="space-y-4">
+                <h3 className="font-medium">Add New Script</h3>
+                <input
+                  type="text"
+                  name="name"
+                  placeholder="Script Name"
+                  className="w-full p-2 border rounded"
+                  value={newScript.name}
+                  onChange={handleNewScriptInputChange}
+                />
+                <input
+                  type="text"
+                  name="category"
+                  placeholder="Category"
+                  className="w-full p-2 border rounded"
+                  value={newScript.category}
+                  onChange={handleNewScriptInputChange}
+                />
+                <textarea
+                  name="code"
+                  placeholder="Script Code"
+                  className="w-full p-2 border rounded min-h-[100px]"
+                  value={newScript.code}
+                  onChange={handleNewScriptInputChange}
+                />
+                <button
+                  className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
+                  onClick={handleAddNewScript}
+                >
+                  Add Script
+                </button>
               </div>
             </div>
           </div>
+        </div>
 
         {/* Right Column */}
         <div className="space-y-6">

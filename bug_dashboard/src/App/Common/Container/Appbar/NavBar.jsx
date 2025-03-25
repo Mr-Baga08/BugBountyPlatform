@@ -50,7 +50,7 @@ export default function Navbar({ title }) {
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <Link to={getDashboardLink()} className="flex-shrink-0 flex items-center">
-              <span className="text-xl font-bold text-gray-900 dark:text-white">Astraeus</span>
+              <span className="text-xl font-bold text-gray-900 dark:text-white">Astraeus Next Gen<span className="font-thin"> BugHuntPlatform</span></span>
             </Link>
             <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
               <Link

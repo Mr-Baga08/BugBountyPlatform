@@ -152,4 +152,24 @@ exports.deliverTask = async (req,res)=>{
         console.log(error);
         res.status(500).json({message:error.message});
     }
-}
+};
+
+exports.getTaskById = async (req, res) => {
+  try {
+    const taskId = req.params.taskId;
+    
+    // Find the task and populate reviews and final report
+    const task = await Task.findById(taskId)
+      .populate({ path: "reviews", strictPopulate: false })
+      .populate({ path: "finalReview", strictPopulate: false });
+
+    if (!task) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+
+    res.status(200).json(task);
+  } catch (error) {
+    console.error("Error fetching task by ID:", error);
+    res.status(500).json({ error: error.message });
+  }
+};

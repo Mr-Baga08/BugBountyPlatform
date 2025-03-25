@@ -224,12 +224,13 @@ app.use((req, res) => {
   });
 });
 
-// Start the server
-const PORT = process.env.PORT || 8081; // GCP Cloud Run provides PORT env variable
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
-  console.log(`CORS configuration: ${allowedOrigins.includes('*') ? 'allowing all origins' : 'restricted to specific origins'}`);
+// Use the port provided by Cloud Run
+const PORT = process.env.PORT || 8081;
+
+// Modify the server startup
+const server = app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🌐 Listening on all interfaces`);
 });
 
 // Add graceful shutdown
@@ -237,15 +238,7 @@ process.on('SIGTERM', () => {
   console.log('SIGTERM signal received: closing HTTP server')
   server.close(() => {
     console.log('HTTP server closed')
+    process.exit(0);
   });
 });
-
-// const PORT = process.env.PORT || 8081;
-// app.listen(PORT, () => {
-//   console.log(`🚀 Server starting...`);
-//   console.log(`✅ Running on port: ${PORT}`);
-//   console.log(`🌐 Environment: ${process.env.NODE_ENV}`);
-// });
-
-// Export for serverless environments
 module.exports = app;

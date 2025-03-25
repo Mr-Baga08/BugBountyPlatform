@@ -8,8 +8,8 @@ RUN npm ci --only=production
 COPY . .
 
 ENV NODE_ENV=production
-ENV PORT=8081
+ENV PORT=8080  
 
-EXPOSE 8081
+EXPOSE 8080
 
-CMD ["node", "server.js"]
+CMD ["node", "vercel-server.js"]

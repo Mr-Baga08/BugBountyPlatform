@@ -24,7 +24,7 @@ const LandingPage = ({ navigate }) => {
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center py-6">
           <div className="flex items-center">
-          <span className="text-2xl font-bold text-gray-900 dark:text-white">Astraeus</span>
+          <span className="text-2xl font-bold text-gray-900 dark:text-white">Astraeus Next Gen<span className="font-thin"> BugHuntPlatform</span></span>
           </div>
           <div className="flex items-center space-x-6">
             <button
@@ -145,7 +145,7 @@ const LandingPage = ({ navigate }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="mb-6 md:mb-0">
-              <span className="text-xl font-bold text-gray-900 dark:text-white">Astraeus</span>
+              <span className="text-xl font-bold text-gray-900 dark:text-white">Astraeus Next Gen<span className="font-thin"> BugHuntPlatform</span></span>
               <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">Secure. Test. Report.</p>
             </div>
             <div className="flex flex-col md:flex-row md:space-x-12 space-y-4 md:space-y-0">
@@ -174,7 +174,7 @@ const LandingPage = ({ navigate }) => {
           </div>
           <div className="mt-8 pt-8 border-t border-gray-200 dark:border-gray-700">
             <p className="text-center text-gray-600 dark:text-gray-400 text-sm">
-              © {new Date().getFullYear()} Astraeus. All rights reserved.
+              © {new Date().getFullYear()}  Next Gen. All rights reserved.
             </p>
           </div>
         </div>

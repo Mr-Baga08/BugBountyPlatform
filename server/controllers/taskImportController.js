@@ -24,15 +24,24 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
   fileFilter: function (req, file, cb) {
-    // Accept only Excel files
-    const filetypes = /xlsx|xls/;
-    const mimetype = filetypes.test(file.mimetype);
+    // Accept Excel files and CSV
+    const filetypes = /xlsx|xls|csv/;
+    const acceptedMimeTypes = [
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/octet-stream', // Sometimes Excel files get this generic type
+      'text/csv'  // For CSV support
+    ];
+  
     const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
     
-    if (mimetype && extname) {
+    console.log("File MIME type:", file.mimetype);
+    console.log("File original name:", file.originalname);
+    
+    if (acceptedMimeTypes.includes(file.mimetype) || extname) {
       return cb(null, true);
     }
-    cb(new Error("Only Excel files are allowed"));
+    cb(new Error("Only Excel and CSV files are allowed"));
   },
 }).single("excelFile");
 

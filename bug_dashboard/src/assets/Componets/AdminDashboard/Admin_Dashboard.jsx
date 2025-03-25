@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   Users, UserCheck, Shield, ChevronLeft, RefreshCw,
-  FileUp, Grid, PlusCircle
+  FileUp, Grid, PlusCircle, FileText
 } from "lucide-react";
 import axios from "axios";
 import TaskDisplayView from "../../../App/Common/Container/TaskDisplay/TaskDisplayView";
@@ -10,6 +10,7 @@ import PendingUserSection from "./PendingUserSection";
 import TaskUploadComponent from "./TaskUploadComponent";
 import Navbar from "../../../App/Common/Container/Appbar/NavBar";
 import API_BASE_URL from "./config";
+import AdminResourceManager from './AdminResourceManager';
 
 export default function AdminBoard() {
   const [activeTab, setActiveTab] = useState("tasks");
@@ -162,6 +163,17 @@ export default function AdminBoard() {
                   </span>
                 )}
               </button>
+              <button
+                onClick={() => handleTabChange("resources")}
+                className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center ${
+                  activeTab === "resources"
+                    ? "border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400"
+                    : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                } transition-colors duration-300`}
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                Resources
+              </button>
               {activeTab === "approvals" && (
                 <button
                   onClick={refreshPendingUsers}
@@ -176,7 +188,9 @@ export default function AdminBoard() {
         </div>
 
         {/* Content based on active tab */}
-        {activeTab === "tasks" ? (
+        {activeTab === "resources" ? (
+          <AdminResourceManager />
+        ) : activeTab === "tasks" ? (
           <TaskDisplayView title="" role="admin" />
         ) : activeTab === "createTasks" ? (
           <TaskUploadComponent />
