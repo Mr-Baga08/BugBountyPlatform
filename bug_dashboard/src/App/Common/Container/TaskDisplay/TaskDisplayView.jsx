@@ -44,8 +44,46 @@ export default function TaskDisplayView({ title, role }) {
 
   // Handle tool/task click
   const handleToolClick = (taskId) => {
-    navigate(`/tool/${taskId}`);
+    // For Hunter role, navigate to the tool page
+    if (role === "hunter") {
+      navigate(`/tool/${taskId}`);
+    } 
+    // For Coach role, navigate to coach review page
+    else if (role === "coach") {
+      navigate(`/coach/review/${taskId}`);
+    } 
+    // For Admin role, navigate to admin review page
+    else if (role === "admin") {
+      navigate(`/admin/review/${taskId}`);
+    }
   };
+  
+  // Update the button in the table's action column with this:
+  {role === "coach" && (
+    <td className="px-6 py-4 whitespace-nowrap text-sm">
+      <div className="flex space-x-2">
+        <button 
+          onClick={() => handleToolClick(task._id)}
+          className="inline-flex items-center px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs font-medium transition-colors duration-150"
+        >
+          <Eye size={14} className="mr-1" /> Review Task
+        </button>
+      </div>
+    </td>
+  )}
+  
+  {role === "admin" && (
+    <td className="px-6 py-4 whitespace-nowrap text-sm">
+      <div className="flex space-x-2">
+        <button 
+          onClick={() => handleToolClick(task._id)}
+          className="inline-flex items-center px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs font-medium transition-colors duration-150"
+        >
+          <Eye size={14} className="mr-1" /> Admin Review
+        </button>
+      </div>
+    </td>
+  )}
 
   // Handle task detail click
   const handleTaskClick = (taskId) => {

@@ -206,3 +206,80 @@ export default function AdminBoard() {
     </div>
   );
 }
+
+const AdminTaskStats = () => {
+  const [stats, setStats] = useState({
+    unclaimed: 0,
+    inProgress: 0,
+    completed: 0,
+    reviewed: 0,
+    delivered: 0
+  });
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch tasks
+        const response = await axios.get(`${API_BASE_URL}/task`, {
+          headers: {
+            'Authorization': localStorage.getItem('token')
+          }
+        });
+        
+        // Calculate statistics
+        const tasks = response.data;
+        const unclaimed = tasks.filter(task => task.status === 'Unclaimed').length;
+        const inProgress = tasks.filter(task => task.status === 'In Progress').length;
+        const completed = tasks.filter(task => task.status === 'Completed').length;
+        const reviewed = tasks.filter(task => task.status === 'Reviewed').length;
+        const delivered = tasks.filter(task => task.status === 'Deliver').length;
+        
+        setStats({
+          unclaimed,
+          inProgress,
+          completed,
+          reviewed,
+          delivered
+        });
+      } catch (error) {
+        console.error('Error fetching task statistics:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchStats();
+  }, []);
+  
+  const statCards = [
+    { name: 'Unclaimed Tasks', value: stats.unclaimed, color: 'bg-gray-100 text-gray-800' },
+    { name: 'In Progress', value: stats.inProgress, color: 'bg-yellow-100 text-yellow-800' },
+    { name: 'Completed', value: stats.completed, color: 'bg-green-100 text-green-800' },
+    { name: 'Reviewed', value: stats.reviewed, color: 'bg-blue-100 text-blue-800' },
+    { name: 'Delivered', value: stats.delivered, color: 'bg-purple-100 text-purple-800' }
+  ];
+  
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+      <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Task Status Overview</h2>
+      
+      {loading ? (
+        <div className="flex justify-center items-center h-24">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          {statCards.map((stat) => (
+            <div key={stat.name} className={`${stat.color} rounded-lg p-4 text-center`}>
+              <div className="text-2xl font-bold">{stat.value}</div>
+              <div className="text-sm">{stat.name}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};

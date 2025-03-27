@@ -118,3 +118,23 @@ exports.addReviewFeedBack = async(req,res)=>{
     }
 }
 
+exports.createTaskReview = async (req, res) => {
+    try {
+      const { taskId, observedBehavior, vulnerabilities, reviewBy } = req.body;
+      
+      // (Existing code to create task review)
+      
+      // Send notification to coach
+      const task = await Task.findById(taskId);
+      if (task) {
+        const { sendTaskReviewNotification } = require("../../config/email");
+        await sendTaskReviewNotification(task, reviewBy, "hunter_to_coach");
+      }
+      
+      res.status(201).json({ message: "Task review created successfully", taskReview });
+    } catch (error) {
+      console.log(error);
+      res.status(500).json({ error: error.message });
+    }
+  };
+

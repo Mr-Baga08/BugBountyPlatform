@@ -4,6 +4,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, FileText, Clock, User, Globe } from 'lucide-react';
 import AppLayout from '../../../App/Common/Layout/AppLayout';
 import API_BASE_URL from '../AdminDashboard/config';
+import TaskWorkflow from './TaskWorkflow';
+
 
 const TaskDetail = () => {
   const { taskId } = useParams();
@@ -194,6 +196,14 @@ const TaskDetail = () => {
                     <div className="mt-1 text-gray-900 dark:text-white">{task.Batch}</div>
                   </div>
                 )}
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden mb-6">
+                  <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-600">
+                    <h2 className="text-lg font-medium text-gray-900 dark:text-white">Workflow Status</h2>
+                  </div>
+                  <div className="p-6">
+                    <TaskWorkflow status={task.status} />
+                  </div>
+                </div>
               </div>
             </div>
             
@@ -293,4 +303,68 @@ const TaskDetail = () => {
   );
 };
 
+const renderWorkflowStatus = (task) => {
+    const steps = [
+      { name: 'Unclaimed', status: task.status === 'Unclaimed' ? 'current' : 'complete' },
+      { name: 'In Progress', status: ['In Progress', 'Completed', 'Reviewed'].includes(task.status) ? 'complete' : 'upcoming' },
+      { name: 'Completed', status: ['Completed', 'Reviewed'].includes(task.status) ? 'complete' : 'upcoming' },
+      { name: 'Reviewed', status: task.status === 'Reviewed' ? 'complete' : 'upcoming' },
+      { name: 'Delivered', status: task.status === 'Deliver' ? 'complete' : 'upcoming' },
+    ];
+  
+    return (
+      <div className="mt-6">
+        <h3 className="text-base font-medium text-gray-900 dark:text-white mb-4">Workflow Status</h3>
+        <nav aria-label="Progress">
+          <ol className="flex items-center">
+            {steps.map((step, stepIdx) => (
+              <li key={step.name} className={`relative ${stepIdx !== steps.length - 1 ? 'pr-8 sm:pr-20' : ''}`}>
+                {step.status === 'complete' ? (
+                  <div className="flex items-center">
+                    <div className="h-9 flex items-center">
+                      <span className="relative z-10 w-8 h-8 flex items-center justify-center bg-blue-600 rounded-full text-white">
+                        <CheckIcon className="w-5 h-5" aria-hidden="true" />
+                      </span>
+                    </div>
+                    <div className={`${stepIdx !== steps.length - 1 ? 'hidden sm:block absolute top-4 left-8 w-full h-0.5 bg-blue-600' : ''}`} />
+                  </div>
+                ) : step.status === 'current' ? (
+                  <div className="flex items-center" aria-current="step">
+                    <div className="h-9 flex items-center">
+                      <span className="relative z-10 w-8 h-8 flex items-center justify-center border-2 border-blue-600 rounded-full bg-white dark:bg-gray-800">
+                        <span className="h-2.5 w-2.5 bg-blue-600 rounded-full" />
+                      </span>
+                    </div>
+                    <div className={`${stepIdx !== steps.length - 1 ? 'hidden sm:block absolute top-4 left-8 w-full h-0.5 bg-gray-300 dark:bg-gray-600' : ''}`} />
+                  </div>
+                ) : (
+                  <div className="flex items-center">
+                    <div className="h-9 flex items-center">
+                      <span className="relative z-10 w-8 h-8 flex items-center justify-center border-2 border-gray-300 dark:border-gray-600 rounded-full bg-white dark:bg-gray-800">
+                        <span className="h-2.5 w-2.5 bg-transparent rounded-full" />
+                      </span>
+                    </div>
+                    <div className={`${stepIdx !== steps.length - 1 ? 'hidden sm:block absolute top-4 left-8 w-full h-0.5 bg-gray-300 dark:bg-gray-600' : ''}`} />
+                  </div>
+                )}
+                <div className="hidden sm:block mt-0.5">
+                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{step.name}</span>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </nav>
+      </div>
+    );
+  };
+  
+  // Add this CheckIcon component at the beginning of your file
+  const CheckIcon = (props) => {
+    return (
+      <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+      </svg>
+    );
+  };
+  
 export default TaskDetail;

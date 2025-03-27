@@ -37,6 +37,11 @@ const SecurityTestingDashboard = () => {
   const [selectedResource, setSelectedResource] = useState(null);
   const [resourceSearchTerm, setResourceSearchTerm] = useState("");
   const [isResourcesLoading, setIsResourcesLoading] = useState(false);
+  // Add these states to the existing state declarations in tool.jsx
+  const [coachFeedback, setCoachFeedback] = useState("");
+  const [adminFeedback, setAdminFeedback] = useState("");
+  const [showFeedbackForm, setShowFeedbackForm] = useState(false);
+  const [selectedReviewId, setSelectedReviewId] = useState(null);
 
   useEffect(() => {
     const fetchTaskReview = async () => {
@@ -336,6 +341,98 @@ const SecurityTestingDashboard = () => {
       fetchResources();
     }
   };
+
+  // Add this function to handle coach feedback submission
+const handleCoachFeedbackSubmit = async (reviewId) => {
+  try {
+    const response = await axios.patch(`${API_BASE_URL}/taskReview/addFeedBack/${reviewId}`, {
+      feedBack: coachFeedback
+    });
+    
+    // Send email notification to hunter
+    await sendEmailNotification({
+      toEmail: task.userEmail || projectTask.userEmail,
+      subject: `Feedback on Task ${projectTask.taskId}`,
+      templateParams: {
+        username: localStorage.getItem("userName"),
+        taskId: projectTask.taskId,
+        status: "Feedback Provided",
+        message: "The coach has provided feedback on your task submission."
+      }
+    });
+    
+    alert("Feedback submitted successfully!");
+    setCoachFeedback("");
+    setShowFeedbackForm(false);
+    // Refresh review list
+    fetchTaskReview();
+  } catch (error) {
+    console.error("Error submitting feedback:", error);
+    alert("Failed to submit feedback. Please try again.");
+  }
+};
+
+// Add this function to send email notifications using EmailJS
+const sendEmailNotification = async (params) => {
+  try {
+    const { toEmail, subject, templateParams } = params;
+    
+    // Add required parameters to template
+    const emailParams = {
+      to_email: toEmail,
+      subject: subject,
+      to_name: templateParams.username || "User",
+      task_id: templateParams.taskId,
+      status: templateParams.status,
+      message: templateParams.message,
+      from_name: "Bug Hunt Platform",
+      reply_to: "no-reply@bughuntplatform.com"
+    };
+    
+    // Send email using EmailJS
+    // You'll need to replace these with your actual EmailJS credentials
+    const serviceID = "service_afpqudj";
+    const templateID = "template_duudxl1";
+    const userID = "sNAmtd-Gt3OneaeG0";
+    
+    await emailjs.send(serviceID, templateID, emailParams, userID);
+    console.log("Email notification sent successfully");
+    return true;
+  } catch (error) {
+    console.error("Failed to send email notification:", error);
+    return false;
+  }
+};
+
+// Add this function to handle admin approval
+const handleAdminApproval = async (taskId, task) => {
+  try {
+    const response = await axios.post(`${API_BASE_URL}/task/deliver/${taskId}`, {
+      status: "Deliver",
+      updatedBy: localStorage.getItem("userName"),
+      taskToDeliver: task
+    });
+    
+    // Send email notification
+    await sendEmailNotification({
+      toEmail: task.userEmail || projectTask.userEmail,
+      subject: `Task ${projectTask.taskId} Approved for Delivery`,
+      templateParams: {
+        username: "Team",
+        taskId: projectTask.taskId,
+        status: "Approved for Delivery",
+        message: "The task has been approved for delivery by the administrator."
+      }
+    });
+    
+    alert("Task approved for delivery!");
+    // Refresh or redirect
+    navigate("/admin-dashboard");
+  } catch (error) {
+    console.error("Error approving task:", error);
+    alert("Failed to approve task. Please try again.");
+  }
+};
 
   return (
     <div className="max-w-6xl mx-auto p-4">
@@ -809,5 +906,155 @@ const SecurityTestingDashboard = () => {
     </div>
   );
 };
+
+const CoachFeedbackModal = ({ isOpen, onClose, review, onSubmit }) => {
+  const [feedback, setFeedback] = useState("");
+  
+  if (!isOpen) return null;
+  
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Provide Feedback</h2>
+            <button 
+              onClick={onClose} 
+              className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+          
+          <div className="space-y-4">
+            <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg mb-4">
+              <h3 className="font-medium text-gray-900 dark:text-white mb-2">Review Details</h3>
+              <p><strong>Reviewed By:</strong> {review.reviewBy}</p>
+              <p><strong>Observed Behavior:</strong> {review.observedBehavior}</p>
+              <p><strong>Vulnerabilities:</strong> {review.vulnerabilities}</p>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Your Feedback
+              </label>
+              <textarea
+                value={feedback}
+                onChange={(e) => setFeedback(e.target.value)}
+                rows={6}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                placeholder="Provide detailed feedback on this review..."
+                required
+              />
+            </div>
+            
+            <div className="flex justify-end space-x-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onSubmit(feedback);
+                  setFeedback("");
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              >
+                Submit Feedback
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const TaskWorkflow = ({ currentStatus }) => {
+  const statuses = ["Unclaimed", "In Progress", "Completed", "Reviewed", "Deliver"];
+  const currentIndex = statuses.indexOf(currentStatus);
+  
+  return (
+    <div className="w-full py-6">
+      <div className="flex items-center">
+        {statuses.map((status, index) => (
+          <React.Fragment key={status}>
+            <div className="relative flex flex-col items-center">
+              <div className={`rounded-full transition duration-500 ease-in-out h-12 w-12 flex items-center justify-center ${
+                index <= currentIndex ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
+              }`}>
+                <span className="text-white text-xs">{index + 1}</span>
+              </div>
+              <div className="text-xs text-center mt-2 w-24">
+                <span className={`font-medium ${
+                  index <= currentIndex ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'
+                }`}>
+                  {status}
+                </span>
+              </div>
+            </div>
+            {index < statuses.length - 1 && (
+              <div className={`flex-auto border-t-2 transition duration-500 ease-in-out ${
+                index < currentIndex ? 'border-blue-600' : 'border-gray-300 dark:border-gray-600'
+              }`}></div>
+            )}
+          </React.Fragment>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const handleResourceAddition = async (type, data) => {
+  try {
+    setIsLoading(true);
+    
+    let endpoint;
+    if (type === 'text') {
+      endpoint = `${API_BASE_URL}/resources/texts/add`;
+    } else {
+      endpoint = `${API_BASE_URL}/resources/videos/add`;
+    }
+    
+    const response = await axios.post(endpoint, data, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': localStorage.getItem('token')
+      }
+    });
+    
+    // Update resources list
+    if (type === 'text') {
+      setResources(prev => ({
+        ...prev,
+        texts: [...prev.texts, response.data]
+      }));
+    } else {
+      setResources(prev => ({
+        ...prev,
+        videos: [...prev.videos, response.data]
+      }));
+    }
+    
+    showAlert('success', `${type === 'text' ? 'Documentation' : 'Video link'} added successfully!`);
+    
+    // Reset form
+    if (type === 'text') {
+      setNewTextDoc({ title: '', content: '' });
+    } else {
+      setNewVideo({ title: '', url: '' });
+    }
+  } catch (error) {
+    console.error(`Error adding ${type}:`, error);
+    showAlert('error', `Failed to add ${type}. Please try again.`);
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
 export default SecurityTestingDashboard;
