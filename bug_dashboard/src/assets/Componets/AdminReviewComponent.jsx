@@ -1,9 +1,9 @@
-// AdminReviewComponent.jsx
+// bug_dashboard/src/assets/Componets/AdminReviewComponent.jsx
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Check, RotateCcw, Eye, Download, FileText, X, Send } from 'lucide-react';
 import axios from 'axios';
-import API_BASE_URL from '../Componets/AdminDashboard/config';
+import API_BASE_URL from './AdminDashboard/config';
 import AppLayout from '../../App/Common/Layout/AppLayout';
 import emailjs from 'emailjs-com';
 
@@ -705,4 +705,4 @@ const AdminReviewComponent = () => {
   );
 };
 
-export default AdminReviewComponent;// AdminReviewComponent.jsx
+export default AdminReviewComponent;

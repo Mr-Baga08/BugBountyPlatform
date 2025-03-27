@@ -1,11 +1,12 @@
 // bug_dashboard/src/assets/Componets/Task/TaskDetail.jsx
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, FileText, Clock, User, Globe } from 'lucide-react';
+import { ChevronLeft, FileText, Clock, User, Globe, Eye, AlertCircle, CheckCircle, Shield } from 'lucide-react';
 import AppLayout from '../../../App/Common/Layout/AppLayout';
 import API_BASE_URL from '../AdminDashboard/config';
 import TaskWorkflow from './TaskWorkflow';
-
+import TaskClaimButton from './TaskClaimButton';
+import axios from 'axios';
 
 const TaskDetail = () => {
   const { taskId } = useParams();
@@ -13,51 +14,86 @@ const TaskDetail = () => {
   const [task, setTask] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isOwner, setIsOwner] = useState(false);
+  const userName = localStorage.getItem('userName');
+  const userRole = localStorage.getItem('userRole');
+
+  const fetchTaskDetails = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+
+      console.log("Fetching task details for:", taskId);
+      console.log("API URL:", `${API_BASE_URL}/task/${taskId}`);
+
+      const response = await fetch(`${API_BASE_URL}/task/${taskId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token
+        }
+      });
+
+      if (!response.ok) {
+        console.error("API Response Error:", response.status, response.statusText);
+        const errorText = await response.text();
+        console.error("Error Details:", errorText);
+        throw new Error(`Failed to fetch task details: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log("Fetched Task Data:", data);
+      setTask(data);
+      
+      // Check if current user is the owner of this task
+      if (data.updatedBy === userName && data.status === 'In Progress') {
+        setIsOwner(true);
+      } else {
+        setIsOwner(false);
+      }
+    } catch (err) {
+      console.error('Error fetching task details:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchTaskDetails = async () => {
-      try {
-        setLoading(true);
-        const token = localStorage.getItem('token');
-        
-        if (!token) {
-          navigate('/login');
-          return;
-        }
-
-        console.log("Fetching task details for:", taskId);
-        console.log("API URL:", `${API_BASE_URL}/task/${taskId}`);
-
-        const response = await fetch(`${API_BASE_URL}/task/${taskId}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': token
-          }
-        });
-
-        if (!response.ok) {
-          console.error("API Response Error:", response.status, response.statusText);
-          const errorText = await response.text();
-          console.error("Error Details:", errorText);
-          throw new Error(`Failed to fetch task details: ${response.status} ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        console.log("Fetched Task Data:", data);
-        setTask(data);
-      } catch (err) {
-        console.error('Error fetching task details:', err);
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     if (taskId) {
       fetchTaskDetails();
     }
   }, [taskId, navigate]);
+
+  // Update task status locally without full refetch
+  const handleStatusChange = (newStatus) => {
+    setTask(prev => ({
+      ...prev,
+      status: newStatus,
+      updatedBy: userName
+    }));
+    
+    // Check if user is now owner (only happens when claiming a task)
+    if (newStatus === 'In Progress' && userName) {
+      setIsOwner(true);
+    }
+  };
+
+  // Handle navigation to the appropriate tool page
+  const handleToolPageNavigation = () => {
+    if (userRole === 'hunter') {
+      navigate(`/tool/${task._id}`, { state: task });
+    } else if (userRole === 'coach') {
+      navigate(`/coach/review/${task._id}`, { state: task });
+    } else if (userRole === 'admin') {
+      navigate(`/admin/review/${task._id}`, { state: task });
+    }
+  };
 
   if (loading) {
     return (
@@ -114,26 +150,58 @@ const TaskDetail = () => {
         </button>
       </div>
       
+      {/* Task Header with Claim button */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-        {/* Task Header */}
         <div className="bg-gray-50 dark:bg-gray-700 px-6 py-4 border-b border-gray-200 dark:border-gray-600">
           <div className="flex justify-between items-center">
             <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
               {task.projectName}
             </h1>
-            <div className={`px-3 py-1 text-sm font-medium rounded-full 
-              ${task.status === 'Completed' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 
-                task.status === 'In Progress' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' : 
-                task.status === 'Reviewed' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' :
-                'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}
-            >
-              {task.status}
+            <div className="flex items-center gap-3">
+              <div className={`px-3 py-1 text-sm font-medium rounded-full 
+                ${task.status === 'Completed' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 
+                  task.status === 'In Progress' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' : 
+                  task.status === 'Reviewed' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' :
+                  'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}
+              >
+                {task.status}
+              </div>
+              
+              <TaskClaimButton 
+                taskId={task._id} 
+                currentStatus={task.status} 
+                currentOwner={task.updatedBy} 
+                onStatusChange={handleStatusChange} 
+              />
             </div>
           </div>
           <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             Task ID: {task.taskId}
           </div>
         </div>
+        
+        {/* Owner Banner - Shows if someone owns this task */}
+        {task.status === 'In Progress' && (
+          <div className={`px-6 py-2 ${isOwner ? 'bg-green-50 dark:bg-green-900/20 border-b border-green-100 dark:border-green-800' : 'bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800'}`}>
+            <div className="flex items-center">
+              {isOwner ? (
+                <>
+                  <CheckCircle className="w-5 h-5 text-green-500 mr-2" />
+                  <p className="text-sm text-green-800 dark:text-green-300">
+                    <span className="font-medium">You have claimed this task.</span> Use the Tool Page to submit your findings.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <Shield className="w-5 h-5 text-blue-500 mr-2" />
+                  <p className="text-sm text-blue-800 dark:text-blue-300">
+                    This task is currently being worked on by <span className="font-medium">{task.updatedBy}</span>
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+        )}
         
         {/* Task Details */}
         <div className="p-6">
@@ -196,14 +264,6 @@ const TaskDetail = () => {
                     <div className="mt-1 text-gray-900 dark:text-white">{task.Batch}</div>
                   </div>
                 )}
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden mb-6">
-                  <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-600">
-                    <h2 className="text-lg font-medium text-gray-900 dark:text-white">Workflow Status</h2>
-                  </div>
-                  <div className="p-6">
-                    <TaskWorkflow status={task.status} />
-                  </div>
-                </div>
               </div>
             </div>
             
@@ -230,14 +290,38 @@ const TaskDetail = () => {
               </div>
               
               {/* Action Buttons */}
-              <div className="mt-6 space-x-4">
-                <button 
-                  onClick={() => navigate(`/tool/${task._id}`)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-300"
-                >
-                  View Tool Page
-                </button>
+              <div className="mt-6 space-y-3">
+                {/* Tool Button - shows different message based on task status and user role */}
+                {userRole === 'hunter' && task.status === 'Unclaimed' && (
+                  <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg text-sm text-yellow-800 dark:text-yellow-300">
+                    <AlertCircle className="inline-block w-4 h-4 mr-1" />
+                    You need to claim this task before you can access the Tool Page.
+                  </div>
+                )}
+                
+                {/* If user is owner or coach/admin, show the tool button */}
+                {(isOwner || userRole === 'coach' || userRole === 'admin' || 
+                  (userRole === 'hunter' && task.status !== 'Unclaimed')) && (
+                  <button 
+                    onClick={handleToolPageNavigation}
+                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-300 flex items-center justify-center"
+                  >
+                    <Eye className="w-5 h-5 mr-2" />
+                    {userRole === 'hunter' ? 'View Tool Page' : 
+                     userRole === 'coach' ? 'Review Task' : 'Admin Review'}
+                  </button>
+                )}
               </div>
+            </div>
+          </div>
+
+          {/* Workflow Status Section */}
+          <div className="mt-8 bg-white dark:bg-gray-800 rounded-lg overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-600">
+              <h2 className="text-lg font-medium text-gray-900 dark:text-white">Workflow Status</h2>
+            </div>
+            <div className="p-6">
+              <TaskWorkflow status={task.status} />
             </div>
           </div>
           
@@ -303,68 +387,4 @@ const TaskDetail = () => {
   );
 };
 
-const renderWorkflowStatus = (task) => {
-    const steps = [
-      { name: 'Unclaimed', status: task.status === 'Unclaimed' ? 'current' : 'complete' },
-      { name: 'In Progress', status: ['In Progress', 'Completed', 'Reviewed'].includes(task.status) ? 'complete' : 'upcoming' },
-      { name: 'Completed', status: ['Completed', 'Reviewed'].includes(task.status) ? 'complete' : 'upcoming' },
-      { name: 'Reviewed', status: task.status === 'Reviewed' ? 'complete' : 'upcoming' },
-      { name: 'Delivered', status: task.status === 'Deliver' ? 'complete' : 'upcoming' },
-    ];
-  
-    return (
-      <div className="mt-6">
-        <h3 className="text-base font-medium text-gray-900 dark:text-white mb-4">Workflow Status</h3>
-        <nav aria-label="Progress">
-          <ol className="flex items-center">
-            {steps.map((step, stepIdx) => (
-              <li key={step.name} className={`relative ${stepIdx !== steps.length - 1 ? 'pr-8 sm:pr-20' : ''}`}>
-                {step.status === 'complete' ? (
-                  <div className="flex items-center">
-                    <div className="h-9 flex items-center">
-                      <span className="relative z-10 w-8 h-8 flex items-center justify-center bg-blue-600 rounded-full text-white">
-                        <CheckIcon className="w-5 h-5" aria-hidden="true" />
-                      </span>
-                    </div>
-                    <div className={`${stepIdx !== steps.length - 1 ? 'hidden sm:block absolute top-4 left-8 w-full h-0.5 bg-blue-600' : ''}`} />
-                  </div>
-                ) : step.status === 'current' ? (
-                  <div className="flex items-center" aria-current="step">
-                    <div className="h-9 flex items-center">
-                      <span className="relative z-10 w-8 h-8 flex items-center justify-center border-2 border-blue-600 rounded-full bg-white dark:bg-gray-800">
-                        <span className="h-2.5 w-2.5 bg-blue-600 rounded-full" />
-                      </span>
-                    </div>
-                    <div className={`${stepIdx !== steps.length - 1 ? 'hidden sm:block absolute top-4 left-8 w-full h-0.5 bg-gray-300 dark:bg-gray-600' : ''}`} />
-                  </div>
-                ) : (
-                  <div className="flex items-center">
-                    <div className="h-9 flex items-center">
-                      <span className="relative z-10 w-8 h-8 flex items-center justify-center border-2 border-gray-300 dark:border-gray-600 rounded-full bg-white dark:bg-gray-800">
-                        <span className="h-2.5 w-2.5 bg-transparent rounded-full" />
-                      </span>
-                    </div>
-                    <div className={`${stepIdx !== steps.length - 1 ? 'hidden sm:block absolute top-4 left-8 w-full h-0.5 bg-gray-300 dark:bg-gray-600' : ''}`} />
-                  </div>
-                )}
-                <div className="hidden sm:block mt-0.5">
-                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{step.name}</span>
-                </div>
-              </li>
-            ))}
-          </ol>
-        </nav>
-      </div>
-    );
-  };
-  
-  // Add this CheckIcon component at the beginning of your file
-  const CheckIcon = (props) => {
-    return (
-      <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-      </svg>
-    );
-  };
-  
 export default TaskDetail;

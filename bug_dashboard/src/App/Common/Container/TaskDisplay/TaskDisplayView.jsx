@@ -43,47 +43,20 @@ export default function TaskDisplayView({ title, role }) {
   };
 
   // Handle tool/task click
-  const handleToolClick = (taskId) => {
-    // For Hunter role, navigate to the tool page
+  const handleToolClick = (taskId, projectTask) => {
+    // For Hunter role, navigate to the hunter tool page
     if (role === "hunter") {
-      navigate(`/tool/${taskId}`);
+      navigate(`/tool/${taskId}`, { state: projectTask });
     } 
     // For Coach role, navigate to coach review page
     else if (role === "coach") {
-      navigate(`/coach/review/${taskId}`);
+      navigate(`/coach/review/${taskId}`, { state: projectTask });
     } 
     // For Admin role, navigate to admin review page
     else if (role === "admin") {
-      navigate(`/admin/review/${taskId}`);
+      navigate(`/admin/review/${taskId}`, { state: projectTask });
     }
   };
-  
-  // Update the button in the table's action column with this:
-  {role === "coach" && (
-    <td className="px-6 py-4 whitespace-nowrap text-sm">
-      <div className="flex space-x-2">
-        <button 
-          onClick={() => handleToolClick(task._id)}
-          className="inline-flex items-center px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs font-medium transition-colors duration-150"
-        >
-          <Eye size={14} className="mr-1" /> Review Task
-        </button>
-      </div>
-    </td>
-  )}
-  
-  {role === "admin" && (
-    <td className="px-6 py-4 whitespace-nowrap text-sm">
-      <div className="flex space-x-2">
-        <button 
-          onClick={() => handleToolClick(task._id)}
-          className="inline-flex items-center px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs font-medium transition-colors duration-150"
-        >
-          <Eye size={14} className="mr-1" /> Admin Review
-        </button>
-      </div>
-    </td>
-  )}
 
   // Handle task detail click
   const handleTaskClick = (taskId) => {
@@ -334,12 +307,12 @@ export default function TaskDisplayView({ title, role }) {
                         className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-150"
                       >
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className="text-blue-600 dark:text-blue-400 hover:underline cursor-pointer font-medium"
-                            onClick={() => handleTaskClick(task._id)}
-                          >
-                            {task.taskId}
-                          </span>
+                        <span
+                          className="text-blue-600 dark:text-blue-400 hover:underline cursor-pointer font-medium"
+                          onClick={() => handleTaskClick(task._id)}
+                        >
+                          {task.taskId}
+                        </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
                           {task.projectName}
@@ -348,12 +321,13 @@ export default function TaskDisplayView({ title, role }) {
                           {task.industry}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <button
-                            onClick={() => handleToolClick(task.taskId)}
-                            className="text-blue-500 hover:text-blue-700 hover:underline font-medium transition-colors duration-150"
-                          >
-                            View Tool
-                          </button>
+                        <button
+                          onClick={() => handleToolClick(task._id, task)}
+                          className="text-blue-500 hover:text-blue-700 hover:underline font-medium transition-colors duration-150"
+                        >
+                          {role === "hunter" ? "View Tool" : 
+                          role === "coach" ? "Review Task" : "Admin Review"}
+                        </button>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {role === "coach" ? (

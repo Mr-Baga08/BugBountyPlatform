@@ -1,10 +1,11 @@
-// CoachReviewComponent.jsx
+// bug_dashboard/src/assets/Componets/CoachReviewComponent.jsx
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Check, RotateCcw, Eye, Download, FileText, X } from 'lucide-react';
 import axios from 'axios';
 import API_BASE_URL from '../Componets/AdminDashboard/config';
 import AppLayout from '../../App/Common/Layout/AppLayout';
+import TaskHeader from './Task/TaskHeader';
 import emailjs from 'emailjs-com';
 
 const CoachReviewComponent = () => {
@@ -18,6 +19,7 @@ const CoachReviewComponent = () => {
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [selectedReview, setSelectedReview] = useState(null);
   const [feedbackContent, setFeedbackContent] = useState('');
+  const [viewMode, setViewMode] = useState('reviewer'); // 'hunter' or 'reviewer'
 
   useEffect(() => {
     // Verify coach role
@@ -213,6 +215,85 @@ const CoachReviewComponent = () => {
       alert('Failed to submit final report feedback');
     }
   };
+
+  const handleDownloadFile = async (fileId) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/taskReview/file/${fileId}`, {
+        responseType: 'blob'
+      });
+      
+      // Create a download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `file-${fileId}`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      alert('Failed to download file');
+    }
+  };
+
+  const handleOpenFeedbackModal = (review) => {
+    setSelectedReview(review);
+    setFeedbackContent('');
+    setShowFeedbackModal(true);
+  };
+
+  const handleSubmitFeedback = async () => {
+    if (!selectedReview || !feedbackContent.trim()) {
+      alert('Please enter feedback content');
+      return;
+    }
+
+    try {
+      await axios.patch(`${API_BASE_URL}/taskReview/addFeedBack/${selectedReview._id}`, {
+        feedBack: feedbackContent
+      }, {
+        headers: {
+          'Authorization': localStorage.getItem('token')
+        }
+      });
+      
+      // Send email notification to hunter about feedback
+      try {
+        // Get hunter email from task
+        const hunterEmail = task.userEmail;
+        if (hunterEmail) {
+          // EmailJS parameters
+          const templateParams = {
+            to_name: 'Hunter',
+            from_name: localStorage.getItem('userName') || 'Coach',
+            message: `Feedback has been provided for your review on task ${task.taskId}`,
+            task_id: task.taskId,
+            status: 'Feedback Provided',
+            reply_to: 'noreply@bughuntplatform.com'
+          };
+          
+          // Using EmailJS for frontend email sending
+          await emailjs.send(
+            'service_afpqudj', // Replace with your EmailJS service ID
+            'template_duudxl1', // Replace with your EmailJS template ID
+            templateParams,
+            'sNAmtd-Gt3OneaeG0' // Replace with your EmailJS user ID
+          );
+        }
+      } catch (emailError) {
+        console.error('Failed to send email notification:', emailError);
+        // Continue execution even if email fails
+      }
+      
+      alert('Feedback submitted successfully');
+      setShowFeedbackModal(false);
+      // Refresh task details
+      fetchTaskDetails();
+    } catch (error) {
+      console.error('Error submitting feedback:', error);
+      alert('Failed to submit feedback');
+    }
+  };
   
   // Feedback modal component
   const FeedbackModal = () => {
@@ -341,48 +422,27 @@ const CoachReviewComponent = () => {
       {/* Feedback Modal */}
       <FeedbackModal />
       
-      {/* Back Navigation */}
-      <div className="mb-4">
-        <button 
-          onClick={() => navigate(-1)} 
-          className="flex items-center text-blue-600 dark:text-blue-400 hover:underline"
-        >
-          <ChevronLeft className="w-4 h-4 mr-1" /> Back to Dashboard
-        </button>
-      </div>
+      {/* Task Header Component */}
+      <TaskHeader 
+        task={task} 
+        viewMode={viewMode} 
+        onViewModeChange={setViewMode} 
+      />
       
-      {/* Task Header */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden mb-6">
-        <div className="bg-gray-50 dark:bg-gray-700 px-6 py-4 border-b border-gray-200 dark:border-gray-600">
-          <div className="flex justify-between items-center">
-            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
-              {task.projectName}
-            </h1>
-            <div className={`px-3 py-1 text-sm font-medium rounded-full 
-              ${task.status === 'Completed' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 
-                task.status === 'In Progress' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' : 
-                'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}
-            >
-              {task.status}
+      {/* Status Banner */}
+      {task.status === 'Completed' && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4 mb-6">
+          <div className="flex items-start">
+            <Check className="w-5 h-5 text-blue-500 mr-2 mt-0.5" />
+            <div>
+              <p className="text-blue-800 dark:text-blue-300 font-medium">Task Ready for Coach Review</p>
+              <p className="text-sm text-blue-600 dark:text-blue-400">
+                The hunter has completed this task and submitted it for your review. Review the findings and provide feedback.
+              </p>
             </div>
           </div>
-          <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Task ID: {task.taskId} | Industry: {task.industry}
-          </div>
-          {task.DomainLink && (
-            <div className="mt-1 text-sm">
-              <a 
-                href={task.DomainLink} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-blue-600 dark:text-blue-400 hover:underline flex items-center"
-              >
-                <Eye className="h-3 w-3 mr-1" /> {task.DomainLink}
-              </a>
-            </div>
-          )}
         </div>
-      </div>
+      )}
       
       {/* Reviews Section */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden mb-6">
@@ -549,86 +609,6 @@ const CoachReviewComponent = () => {
       </div>
     </AppLayout>
   );
-}
+};
 
-  const handleDownloadFile = async (fileId) => {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/taskReview/file/${fileId}`, {
-        responseType: 'blob'
-      });
-      
-      // Create a download link
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `file-${fileId}`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (error) {
-      console.error('Error downloading file:', error);
-      alert('Failed to download file');
-    }
-  };
-
-  const handleOpenFeedbackModal = (review) => {
-    setSelectedReview(review);
-    setFeedbackContent('');
-    setShowFeedbackModal(true);
-  };
-
-  const handleSubmitFeedback = async () => {
-    if (!selectedReview || !feedbackContent.trim()) {
-      alert('Please enter feedback content');
-      return;
-    }
-
-    try {
-      await axios.patch(`${API_BASE_URL}/taskReview/addFeedBack/${selectedReview._id}`, {
-        feedBack: feedbackContent
-      }, {
-        headers: {
-          'Authorization': localStorage.getItem('token')
-        }
-      });
-      
-      // Send email notification to hunter about feedback
-      try {
-        // Get hunter email from task
-        const hunterEmail = task.userEmail;
-        if (hunterEmail) {
-          // EmailJS parameters
-          const templateParams = {
-            to_name: 'Hunter',
-            from_name: localStorage.getItem('userName') || 'Coach',
-            message: `Feedback has been provided for your review on task ${task.taskId}`,
-            task_id: task.taskId,
-            status: 'Feedback Provided',
-            reply_to: 'noreply@bughuntplatform.com'
-          };
-          
-          // Using EmailJS for frontend email sending
-          // You'll need to import emailjs-com in your component
-          await emailjs.send(
-            'service_afpqudj', // Replace with your EmailJS service ID
-            'template_duudxl1', // Replace with your EmailJS template ID
-            templateParams,
-            'sNAmtd-Gt3OneaeG0' // Replace with your EmailJS user ID
-          );
-        }
-      } catch (emailError) {
-        console.error('Failed to send email notification:', emailError);
-        // Continue execution even if email fails
-      }
-      
-      alert('Feedback submitted successfully');
-      setShowFeedbackModal(false);
-      // Refresh task details
-      fetchTaskDetails();
-    } catch (error) {
-      console.error('Error submitting feedback:', error);
-      alert('Failed to submit feedback');
-    }
-  };
-
-  export default CoachReviewComponent;
+export default CoachReviewComponent;
