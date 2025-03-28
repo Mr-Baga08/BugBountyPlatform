@@ -48,44 +48,80 @@ exports.deleteTask = async (req, res) => {
   }
 };
 
+// Update this method in server/controllers/taskController.js
 exports.updateTaskStatus = async (req, res) => {
   try {
-    const { status, updatedBy ,userEmail ,tks} = req.body;
+    const { status, updatedBy, userEmail, tks } = req.body;
     const { taskId } = req.params;
-    // ---- sending mail
-    const mailOptions = {
-        from: process.env.EMAIL_USER,
-        to: userEmail,
-        subject: "Task status change",
-        html: `<p>Your submited task: ${tks}</p>
-               <p>Status change to: ${status}</p>`
-    };
-    // transporter.sendMail
-    transporter.sendMail(mailOptions);
-    // ------------------
-    // const putDeliverTask = await Del
+    
+    console.log(`Updating task status for ${taskId} to ${status} by ${updatedBy}`);
+    
+    // Validate the taskId is provided
+    if (!taskId) {
+      return res.status(400).json({ message: "Task ID is required" });
+    }
+    
+    // Validate the status is one of the allowed values
+    const allowedStatuses = ["Unclaimed", "In Progress", "Completed", "Reviewed"];
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({ message: "Invalid status value" });
+    }
+    
+    // Attempt to send email notification (don't block on failure)
+    try {
+      if (userEmail && tks) {
+        // Import transporter only if email sending is needed
+        const transporter = require("../config/email").transporter;
+        
+        const mailOptions = {
+          from: process.env.EMAIL_USER || 'noreply@bughuntplatform.com',
+          to: userEmail,
+          subject: "Task status change",
+          html: `<p>Your submitted task: ${tks}</p>
+                <p>Status change to: ${status}</p>
+                <p>Changed by: ${updatedBy}</p>`
+        };
+        
+        // Send email asynchronously (don't await)
+        transporter.sendMail(mailOptions)
+          .then(() => console.log(`Email sent to ${userEmail} about task ${tks}`))
+          .catch(err => console.error('Email sending failed:', err));
+      }
+    } catch (emailError) {
+      // Log email error but continue with task status update
+      console.error('Error preparing email notification:', emailError);
+    }
+    
+    // Update the task status
     const updatedTask = await taskService.updateTaskStatus(
       taskId,
       status,
       updatedBy
     );
+    
+    // Add to task change history
     const updatedTaskChange = await taskService.addTaskChange(
       taskId,
       status,
       updatedBy
     );
-
     
-    if (!updatedTask)
+    if (!updatedTask) {
       return res.status(404).json({ message: "Task not found" });
-    res.status(200)
-      .json({ message: "Task status updated successfully", updatedTask });
+    }
+    
+    res.status(200).json({ 
+      message: "Task status updated successfully", 
+      updatedTask 
+    });
   } catch (error) {
-    console.log(error)
-    res.status(500).json({ error: error.message });
+    console.error("Error updating task status:", error);
+    res.status(500).json({ 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 };
-
 
 exports.getAccordingToStatus = async (req, res) => {
   try {

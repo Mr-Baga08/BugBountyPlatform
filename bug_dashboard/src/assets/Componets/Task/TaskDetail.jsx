@@ -72,15 +72,31 @@ const TaskDetail = () => {
 
   // Update task status locally without full refetch
   const handleStatusChange = (newStatus) => {
-    setTask(prev => ({
-      ...prev,
-      status: newStatus,
-      updatedBy: userName
-    }));
+    setTask(prev => {
+      if (!prev) return null;
+      
+      return {
+        ...prev,
+        status: newStatus,
+        updatedBy: userName
+      };
+    });
     
     // Check if user is now owner (only happens when claiming a task)
     if (newStatus === 'In Progress' && userName) {
-      setIsOwner(true);
+      setIsTaskOwner(true);
+      
+      // If the claim was successful, navigate to the tool page after a short delay
+      // This ensures the user can start working immediately
+      setTimeout(() => {
+        navigate(`/tool/${taskId}`, { 
+          state: {
+            ...task,
+            status: newStatus,
+            updatedBy: userName
+          }
+        });
+      }, 1500); // Short delay to allow the success message to be seen
     }
   };
 

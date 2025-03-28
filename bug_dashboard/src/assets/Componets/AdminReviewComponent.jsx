@@ -603,12 +603,14 @@ const AdminReviewComponent = () => {
                     </div>
                   </div>
                   
-                  {/* Previous Admin Feedback - In a real implementation, admin feedback would be stored separately */}
+                  {/* Previous Admin Feedback - Fixed parsing to display properly */}
                   {review.feedBack && review.feedBack.includes("[ADMIN FEEDBACK]") && (
                     <div className="mt-4">
                       <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Admin Feedback</h4>
                       <div className="text-sm bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 p-2 rounded">
-                        {review.feedBack.split('[ADMIN FEEDBACK]')[1].split('[COACH FEEDBACK]')[0]}
+                        {review.feedBack.includes("[COACH FEEDBACK]") 
+                          ? review.feedBack.split('[ADMIN FEEDBACK]')[1].split('[COACH FEEDBACK]')[0].trim() 
+                          : review.feedBack.split('[ADMIN FEEDBACK]')[1].trim()}
                       </div>
                     </div>
                   )}
@@ -664,12 +666,14 @@ const AdminReviewComponent = () => {
               </div>
             </div>
             
-            {/* Previous Admin Feedback */}
+            {/* Previous Admin Feedback - Fixed parsing to display properly */}
             {finalReport.feedBack && finalReport.feedBack.includes("[ADMIN FEEDBACK]") && (
               <div className="mt-4">
                 <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Admin Feedback</h4>
                 <div className="text-sm bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 p-2 rounded">
-                  {finalReport.feedBack.split('[ADMIN FEEDBACK]')[1].split('[COACH FEEDBACK]')[0]}
+                  {finalReport.feedBack.includes("[COACH FEEDBACK]") 
+                    ? finalReport.feedBack.split('[ADMIN FEEDBACK]')[1].split('[COACH FEEDBACK]')[0].trim() 
+                    : finalReport.feedBack.split('[ADMIN FEEDBACK]')[1].trim()}
                 </div>
               </div>
             )}
