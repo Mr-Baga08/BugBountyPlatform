@@ -1,10 +1,12 @@
 // bug_dashboard/src/assets/Componets/AdminDashboard/SubscriptionManagement.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, Users, CreditCard, Shield, AlertTriangle, CheckCircle, X, Loader, RefreshCw, PlusCircle, MinusCircle } from 'lucide-react';
-import axios from 'axios';
+import { 
+  Calendar, Users, CreditCard, Shield, AlertTriangle, CheckCircle, 
+  X, Loader, RefreshCw, PlusCircle, MinusCircle 
+} from 'lucide-react';
+import RazorpayService from '../../../services/RazorpayService';
 import API_BASE_URL from './config';
-import { getSubscriptionDetails, updateSubscriptionQuantity, cancelSubscription } from '../../../utils/stripe';
 
 const SubscriptionManagement = () => {
   const navigate = useNavigate();
@@ -25,25 +27,39 @@ const SubscriptionManagement = () => {
         setLoading(true);
         setError(null);
         
-        // Fetch subscription details from backend
-        const subscriptionData = await getSubscriptionDetails();
-        setSubscription(subscriptionData);
+        // Get company ID from local storage - this would be set during login
+        const companyId = localStorage.getItem('companyId');
         
-        // Set user count from subscription or default value
-        if (subscriptionData.quantity) {
-          setUserCount(subscriptionData.quantity);
-          setNewUserCount(subscriptionData.quantity);
-        }
-        
-        // Fetch active user count
-        const usersResponse = await axios.get(`${API_BASE_URL}/users/count`, {
-          headers: {
-            'Authorization': localStorage.getItem('token')
+        if (!companyId) {
+          // If no company ID, fetch user profile to get it
+          const userResponse = await fetch(`${API_BASE_URL}/users/profile`, {
+            method: 'GET',
+            headers: {
+              'Authorization': localStorage.getItem('token')
+            }
+          });
+          
+          if (!userResponse.ok) {
+            throw new Error('Failed to fetch user profile');
           }
-        });
-        
-        setActiveUsers(usersResponse.data.count || 0);
-        
+          
+          const userData = await userResponse.json();
+          
+          if (!userData.companyId) {
+            throw new Error('No company ID associated with user');
+          }
+          
+          // Store for future use
+          localStorage.setItem('companyId', userData.companyId);
+          
+          // Fetch subscription details using the company ID
+          const subscriptionData = await RazorpayService.getCompanyUsage(userData.companyId);
+          handleSubscriptionData(subscriptionData);
+        } else {
+          // Fetch subscription details using the stored company ID
+          const subscriptionData = await RazorpayService.getCompanyUsage(companyId);
+          handleSubscriptionData(subscriptionData);
+        }
       } catch (err) {
         console.error('Error fetching subscription data:', err);
         setError('Failed to load subscription information. Please try again.');
@@ -52,13 +68,31 @@ const SubscriptionManagement = () => {
       }
     };
     
+    const handleSubscriptionData = (data) => {
+      setSubscription(data);
+      
+      // Set user count from subscription or company data
+      if (data.subscription?.userCount) {
+        setUserCount(data.subscription.userCount);
+        setNewUserCount(data.subscription.userCount);
+      } else if (data.company?.userCount) {
+        setUserCount(data.company.userCount);
+        setNewUserCount(data.company.userCount);
+      }
+      
+      // Set active users count
+      setActiveUsers(data.usage?.activeUsers || 0);
+    };
+    
     fetchSubscriptionData();
   }, []);
   
   // Helper function to format date
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-US', {
+    
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric'
@@ -69,40 +103,50 @@ const SubscriptionManagement = () => {
   const calculateDaysRemaining = () => {
     if (!subscription) return 0;
     
-    if (subscription.status === 'trial') {
-      const trialEnd = new Date(subscription.trial_end);
+    if (subscription.company?.isTrial) {
+      const trialEnd = new Date(subscription.company.trialEndDate);
       const now = new Date();
       return Math.max(0, Math.ceil((trialEnd - now) / (1000 * 60 * 60 * 24)));
-    } else {
-      const periodEnd = new Date(subscription.current_period_end);
+    } else if (subscription.subscription) {
+      const periodEnd = new Date(subscription.subscription.nextBillingDate);
       const now = new Date();
       return Math.max(0, Math.ceil((periodEnd - now) / (1000 * 60 * 60 * 24)));
     }
+    
+    return 0;
   };
   
   // Handle updating user count
   const handleUpdateUserCount = async () => {
     try {
       if (newUserCount < 20) {
-        alert('Minimum user count is 20');
+        setError('Minimum user count is 20');
         return;
       }
       
       setIsUpdating(true);
       setError(null);
       
-      await updateSubscriptionQuantity(newUserCount);
+      const companyId = localStorage.getItem('companyId');
+      if (!companyId) {
+        throw new Error('No company ID found');
+      }
+      
+      // Call API to update user count
+      const response = await RazorpayService.updateUserCount(companyId, newUserCount);
+      
+      // Update local state
+      setUserCount(response.subscription.userCount);
       
       // Refresh subscription data
-      const subscriptionData = await getSubscriptionDetails();
-      setSubscription(subscriptionData);
-      setUserCount(subscriptionData.quantity);
+      const updatedData = await RazorpayService.getCompanyUsage(companyId);
+      setSubscription(updatedData);
       
       setShowUserCountModal(false);
       
     } catch (err) {
       console.error('Error updating user count:', err);
-      setError('Failed to update user count. Please try again.');
+      setError(err.message || 'Failed to update user count. Please try again.');
     } finally {
       setIsUpdating(false);
     }
@@ -114,17 +158,63 @@ const SubscriptionManagement = () => {
       setIsUpdating(true);
       setError(null);
       
-      await cancelSubscription();
+      const companyId = localStorage.getItem('companyId');
+      if (!companyId) {
+        throw new Error('No company ID found');
+      }
+      
+      // Call API to cancel subscription
+      await fetch(`${API_BASE_URL}/payments/cancel-subscription`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': localStorage.getItem('token')
+        },
+        body: JSON.stringify({ companyId })
+      });
       
       // Refresh subscription data
-      const subscriptionData = await getSubscriptionDetails();
-      setSubscription(subscriptionData);
+      const updatedData = await RazorpayService.getCompanyUsage(companyId);
+      setSubscription(updatedData);
       
       setShowConfirmCancel(false);
       
     } catch (err) {
       console.error('Error canceling subscription:', err);
-      setError('Failed to cancel subscription. Please try again.');
+      setError(err.message || 'Failed to cancel subscription. Please try again.');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+  
+  // Handle resuming a canceled subscription
+  const handleResumeSubscription = async () => {
+    try {
+      setIsUpdating(true);
+      setError(null);
+      
+      const companyId = localStorage.getItem('companyId');
+      if (!companyId) {
+        throw new Error('No company ID found');
+      }
+      
+      // Call API to resume subscription
+      await fetch(`${API_BASE_URL}/payments/resume-subscription`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': localStorage.getItem('token')
+        },
+        body: JSON.stringify({ companyId })
+      });
+      
+      // Refresh subscription data
+      const updatedData = await RazorpayService.getCompanyUsage(companyId);
+      setSubscription(updatedData);
+      
+    } catch (err) {
+      console.error('Error resuming subscription:', err);
+      setError(err.message || 'Failed to resume subscription. Please try again.');
     } finally {
       setIsUpdating(false);
     }
@@ -168,6 +258,7 @@ const SubscriptionManagement = () => {
               </div>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 You will be billed ${newUserCount <= 20 ? 99 : 99 + (Math.ceil((newUserCount - 20) / 20) * 25)} per month
+                {subscription?.subscription?.interval === 'yearly' ? ' (with 20% annual discount applied)' : ''}
               </p>
             </div>
             
@@ -280,29 +371,29 @@ const SubscriptionManagement = () => {
         {/* Subscription Status Card */}
         <div className="mb-8">
           <div className={`rounded-lg p-6 ${
-            subscription?.status === 'trial' 
+            subscription?.company?.isTrial 
               ? 'bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800' 
-              : subscription?.status === 'active' 
+              : (subscription?.subscription?.status === 'active')
                 ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
-                : subscription?.status === 'canceling'
+                : (subscription?.subscription?.status === 'cancelled')
                   ? 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800'
                   : 'bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600'
           }`}>
             <div className="flex items-start">
               <div className={`p-3 rounded-full mr-4 ${
-                subscription?.status === 'trial' 
+                subscription?.company?.isTrial 
                   ? 'bg-purple-100 dark:bg-purple-900/40' 
-                  : subscription?.status === 'active'
+                  : (subscription?.subscription?.status === 'active')
                     ? 'bg-green-100 dark:bg-green-900/40'
-                    : subscription?.status === 'canceling'
+                    : (subscription?.subscription?.status === 'cancelled')
                       ? 'bg-amber-100 dark:bg-amber-900/40'
                       : 'bg-gray-100 dark:bg-gray-600'
               }`}>
-                {subscription?.status === 'trial' ? (
+                {subscription?.company?.isTrial ? (
                   <Shield className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-                ) : subscription?.status === 'active' ? (
+                ) : (subscription?.subscription?.status === 'active') ? (
                   <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
-                ) : subscription?.status === 'canceling' ? (
+                ) : (subscription?.subscription?.status === 'cancelled') ? (
                   <AlertTriangle className="h-6 w-6 text-amber-600 dark:text-amber-400" />
                 ) : (
                   <X className="h-6 w-6 text-gray-600 dark:text-gray-400" />
@@ -310,30 +401,30 @@ const SubscriptionManagement = () => {
               </div>
               <div className="flex-1">
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                  {subscription?.status === 'trial' ? 'Free Trial' :
-                   subscription?.status === 'active' ? 'Active Subscription' :
-                   subscription?.status === 'canceling' ? 'Subscription Ending' :
-                   subscription?.status === 'past_due' ? 'Payment Past Due' :
+                  {subscription?.company?.isTrial ? 'Free Trial' :
+                   (subscription?.subscription?.status === 'active') ? 'Active Subscription' :
+                   (subscription?.subscription?.status === 'cancelled') ? 'Subscription Ending' :
+                   (subscription?.subscription?.status === 'halted') ? 'Payment Issue' :
                    'Inactive'}
                 </h3>
                 <p className="text-gray-600 dark:text-gray-400">
-                  {subscription?.status === 'trial' ? (
-                    <>Your free trial ends on <strong>{formatDate(subscription.trial_end)}</strong>. 
+                  {subscription?.company?.isTrial ? (
+                    <>Your free trial ends on <strong>{formatDate(subscription.company.trialEndDate)}</strong>. 
                     <strong> {calculateDaysRemaining()} days</strong> remaining.</>
-                  ) : subscription?.status === 'active' ? (
-                    <>Your subscription is active and will renew on <strong>{formatDate(subscription.current_period_end)}</strong>.</>
-                  ) : subscription?.status === 'canceling' ? (
-                    <>Your subscription will end on <strong>{formatDate(subscription.current_period_end)}</strong>. 
+                  ) : (subscription?.subscription?.status === 'active') ? (
+                    <>Your subscription is active and will renew on <strong>{formatDate(subscription.subscription.nextBillingDate)}</strong>.</>
+                  ) : (subscription?.subscription?.status === 'cancelled') ? (
+                    <>Your subscription will end on <strong>{formatDate(subscription.subscription.nextBillingDate)}</strong>. 
                     <strong> {calculateDaysRemaining()} days</strong> remaining.</>
-                  ) : subscription?.status === 'past_due' ? (
-                    <>Your payment is past due. Please update your payment method.</>
+                  ) : (subscription?.subscription?.status === 'halted') ? (
+                    <>There's an issue with your payment method. Please update your payment details.</>
                   ) : (
                     <>You don't have an active subscription.</>
                   )}
                 </p>
               </div>
               <div>
-                {subscription?.status === 'trial' && (
+                {subscription?.company?.isTrial && (
                   <button
                     onClick={() => navigate('/pricing')}
                     className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
@@ -341,7 +432,7 @@ const SubscriptionManagement = () => {
                     Upgrade Now
                   </button>
                 )}
-                {subscription?.status === 'canceling' && (
+                {(subscription?.subscription?.status === 'cancelled') && (
                   <button
                     onClick={handleResumeSubscription}
                     className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
@@ -349,7 +440,7 @@ const SubscriptionManagement = () => {
                     Resume Subscription
                   </button>
                 )}
-                {subscription?.status === 'inactive' && (
+                {(!subscription?.company?.isTrial && !subscription?.subscription) && (
                   <button
                     onClick={() => navigate('/pricing')}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -363,7 +454,7 @@ const SubscriptionManagement = () => {
         </div>
         
         {/* Subscription Details */}
-        {(subscription?.status === 'active' || subscription?.status === 'canceling' || subscription?.status === 'trial') && (
+        {(subscription?.company?.isTrial || subscription?.subscription) && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             {/* User Information */}
             <div className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-6">
@@ -377,13 +468,13 @@ const SubscriptionManagement = () => {
                   <div className="flex justify-between items-center mb-1">
                     <span className="text-sm text-gray-500 dark:text-gray-400">Current Plan</span>
                     <span className="text-sm font-medium text-gray-900 dark:text-white">
-                      {subscription?.status === 'trial' ? 'Free Trial' : 'Standard Plan'}
+                      {subscription?.company?.isTrial ? 'Free Trial' : 'Enterprise Plan'}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-500 dark:text-gray-400">User Limit</span>
                     <span className="text-sm font-medium text-gray-900 dark:text-white">
-                      {subscription?.status === 'trial' ? 'Unlimited during trial' : `${userCount} users`}
+                      {subscription?.company?.isTrial ? `${userCount} users during trial` : `${userCount} users`}
                     </span>
                   </div>
                 </div>
@@ -392,25 +483,23 @@ const SubscriptionManagement = () => {
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-sm text-gray-500 dark:text-gray-400">Active Users</span>
                     <span className="text-sm font-medium text-gray-900 dark:text-white">
-                      {activeUsers} / {subscription?.status === 'trial' ? '∞' : userCount}
+                      {activeUsers} / {userCount}
                     </span>
                   </div>
                   
                   <div className="h-2 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
                     <div 
                       className={`h-full ${
-                        subscription?.status === 'trial' 
-                          ? 'bg-purple-500' 
-                          : activeUsers / userCount > 0.8 
-                            ? 'bg-amber-500' 
-                            : 'bg-green-500'
+                        activeUsers / userCount > 0.8 
+                          ? 'bg-amber-500' 
+                          : 'bg-green-500'
                       }`}
-                      style={{ width: subscription?.status === 'trial' ? '100%' : `${Math.min(100, (activeUsers / userCount) * 100)}%` }}
+                      style={{ width: `${Math.min(100, (activeUsers / userCount) * 100)}%` }}
                     ></div>
                   </div>
                 </div>
                 
-                {subscription?.status === 'active' && (
+                {(subscription?.subscription?.status === 'active') && (
                   <button
                     onClick={() => {
                       setNewUserCount(userCount);
@@ -433,41 +522,41 @@ const SubscriptionManagement = () => {
               </div>
               
               <div className="space-y-4">
-                {subscription?.status !== 'trial' && (
+                {subscription?.subscription && (
                   <>
                     <div>
                       <div className="flex justify-between items-center mb-1">
                         <span className="text-sm text-gray-500 dark:text-gray-400">Plan Cost</span>
                         <span className="text-sm font-medium text-gray-900 dark:text-white">
-                          ${userCount <= 20 ? 99 : 99 + (Math.ceil((userCount - 20) / 20) * 25)}/month
+                          ${RazorpayService.calculatePrice(userCount, subscription.subscription.interval).monthlyPrice}/month
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-sm text-gray-500 dark:text-gray-400">Billing Period</span>
-                        <span className="text-sm font-medium text-gray-900 dark:text-white">
-                          Monthly
+                        <span className="text-sm font-medium text-gray-900 dark:text-white capitalize">
+                          {subscription.subscription.interval}
                         </span>
                       </div>
                     </div>
                     
                     <div className="pt-4 border-t border-gray-200 dark:border-gray-600">
                       <div className="flex justify-between items-center mb-1">
-                        <span className="text-sm text-gray-500 dark:text-gray-400">Current Period</span>
+                        <span className="text-sm text-gray-500 dark:text-gray-400">Next Billing Date</span>
                         <span className="text-sm font-medium text-gray-900 dark:text-white">
-                          {formatDate(subscription?.current_period_start)} - {formatDate(subscription?.current_period_end)}
+                          {formatDate(subscription.subscription.nextBillingDate)}
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-500 dark:text-gray-400">Next Invoice</span>
+                        <span className="text-sm text-gray-500 dark:text-gray-400">Payment Method</span>
                         <span className="text-sm font-medium text-gray-900 dark:text-white">
-                          {formatDate(subscription?.current_period_end)}
+                          Credit Card **** {subscription.subscription.lastFourDigits || '1234'}
                         </span>
                       </div>
                     </div>
                   </>
                 )}
                 
-                {subscription?.status === 'trial' && (
+                {subscription?.company?.isTrial && (
                   <div>
                     <div className="flex justify-between items-center mb-1">
                       <span className="text-sm text-gray-500 dark:text-gray-400">Free Trial</span>
@@ -478,7 +567,7 @@ const SubscriptionManagement = () => {
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-500 dark:text-gray-400">Trial Ends</span>
                       <span className="text-sm font-medium text-gray-900 dark:text-white">
-                        {formatDate(subscription?.trial_end)}
+                        {formatDate(subscription.company.trialEndDate)}
                       </span>
                     </div>
                     <div className="flex justify-between items-center mt-1">
@@ -490,7 +579,7 @@ const SubscriptionManagement = () => {
                   </div>
                 )}
                 
-                {(subscription?.status === 'active') && (
+                {(subscription?.subscription?.status === 'active') && (
                   <button
                     onClick={() => setShowConfirmCancel(true)}
                     className="w-full mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
@@ -499,7 +588,7 @@ const SubscriptionManagement = () => {
                   </button>
                 )}
                 
-                {subscription?.status === 'trial' && (
+                {subscription?.company?.isTrial && (
                   <button
                     onClick={() => navigate('/pricing')}
                     className="w-full mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"

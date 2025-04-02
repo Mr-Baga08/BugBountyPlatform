@@ -1,10 +1,9 @@
 // bug_dashboard/src/assets/Componets/Payment/PaymentPage.jsx
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Shield, CreditCard, Check, AlertCircle, Loader } from 'lucide-react';
-import axios from 'axios';
+import RazorpayService from '../../../services/RazorpayService';
 import API_BASE_URL from '../AdminDashboard/config';
 
-// Razorpay integration component
 const PaymentPage = ({ navigate, location }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -22,17 +21,24 @@ const PaymentPage = ({ navigate, location }) => {
     interval: 'monthly'
   };
   
-  // Calculate actual price based on billing interval
-  const actualPrice = planDetails.interval === 'yearly' 
-    ? Math.round(planDetails.price * 12 * 0.8) 
-    : planDetails.price;
+  // Calculate price details using our utility function
+  const priceDetails = RazorpayService.calculatePrice(
+    planDetails.userCount, 
+    planDetails.interval
+  );
   
-  // Format price for display
+  // Format prices for display
   const formattedPrice = new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
     minimumFractionDigits: 0,
-  }).format(actualPrice);
+  }).format(priceDetails.monthlyPrice);
+  
+  const formattedAnnualPrice = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+  }).format(priceDetails.annualPrice);
 
   useEffect(() => {
     if (darkMode) {
@@ -42,17 +48,7 @@ const PaymentPage = ({ navigate, location }) => {
     }
     
     // Load Razorpay script when component mounts
-    const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    script.async = true;
-    document.body.appendChild(script);
-    
-    return () => {
-      // Clean up script when component unmounts
-      if (document.body.contains(script)) {
-        document.body.removeChild(script);
-      }
-    };
+    RazorpayService.loadScript();
   }, [darkMode]);
 
   const toggleDarkMode = () => {
@@ -79,23 +75,22 @@ const PaymentPage = ({ navigate, location }) => {
   };
 
   // Handle free trial signup
-  const handleTrialSignup = async (e) => {
+  const handleTrialSignup = async () => {
     if (!validateForm()) return;
     
     setIsLoading(true);
     setError(null);
     
     try {
-      // In a real implementation, we would make an API call
-      // const response = await axios.post(`${API_BASE_URL}/payments/setup-trial`, {
-      //   companyName,
-      //   email,
-      //   phone,
-      //   userCount: planDetails.userCount
-      // });
+      // Request trial setup from the backend
+      const trialData = {
+        companyName,
+        email,
+        phone,
+        userCount: planDetails.userCount
+      };
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const response = await RazorpayService.setupTrial(trialData);
       
       setIsSuccess(true);
       
@@ -104,103 +99,81 @@ const PaymentPage = ({ navigate, location }) => {
         navigate('/setup', { 
           state: { 
             trialCreated: true,
+            companyId: response.companyId,
             companyName,
             email,
-            userCount: planDetails.userCount
+            userCount: planDetails.userCount,
+            trialEndDate: response.trialEndDate
           } 
         });
       }, 2000);
     } catch (err) {
       console.error('Error creating trial:', err);
-      setError(err.response?.data?.message || 'An error occurred while creating your trial. Please try again.');
+      setError(err.message || 'An error occurred while creating your trial. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
   // Handle subscription payment
-  const handleSubscriptionPayment = () => {
+  const handleSubscriptionPayment = async () => {
     if (!validateForm()) return;
     
     setIsLoading(true);
     setError(null);
     
-    // Create Razorpay payment
-    const options = {
-      key: "rzp_live_JCExPjTteNgBfp", // Razorpay key
-      subscription_id: "plan_QDS07pURG8tCkM", // Subscription ID
-      name: "Astraeus Next Gen BugHuntPlatform",
-      description: `Enterprise Plan - ${planDetails.userCount} users (${planDetails.interval})`,
-      image: "https://your-company-logo.png", // Placeholder, replace with actual
-      prefill: {
-        name: companyName,
-        email: email,
-        contact: phone
-      },
-      notes: {
+    try {
+      // Prepare customer data
+      const customerData = {
+        companyName,
+        email,
+        phone,
         userCount: planDetails.userCount,
-        billingCycle: planDetails.interval,
-        basePrice: planDetails.price
-      },
-      theme: {
-        color: "#2563EB"
-      },
-      handler: function(response) {
-        // Payment successful
-        handlePaymentSuccess(response);
-      },
-      modal: {
-        ondismiss: function() {
+        interval: planDetails.interval
+      };
+      
+      // Step 1: Create subscription order via backend
+      const orderData = await RazorpayService.createSubscriptionOrder(customerData);
+      
+      // Step 2: Open Razorpay payment modal
+      await RazorpayService.openPaymentModal(
+        orderData,
+        customerData,
+        // Success callback
+        async (paymentData) => {
+          try {
+            // Step 3: Verify payment with backend
+            const verifyResponse = await RazorpayService.verifyPayment(paymentData, customerData);
+            
+            setIsSuccess(true);
+            
+            // Redirect to setup page after successful payment
+            setTimeout(() => {
+              navigate('/setup', { 
+                state: { 
+                  subscriptionActive: true,
+                  companyId: verifyResponse.subscription.companyId,
+                  companyName,
+                  email,
+                  userCount: planDetails.userCount
+                } 
+              });
+            }, 2000);
+          } catch (verifyError) {
+            setError(verifyError.message || 'Payment verification failed. Please contact support.');
+            setIsLoading(false);
+          }
+        },
+        // Error callback
+        (errorMessage) => {
+          setError(errorMessage || 'Payment process was interrupted. Please try again.');
           setIsLoading(false);
         }
-      }
-    };
-
-    try {
-      const rzp = new window.Razorpay(options);
-      rzp.open();
+      );
+      
     } catch (err) {
-      console.error('Razorpay error:', err);
-      setError('Error initializing payment. Please try again.');
-      setIsLoading(false);
-    }
-  };
-
-  // Handle successful payment
-  const handlePaymentSuccess = async (response) => {
-    try {
-      // In a real implementation, we would verify the payment with the backend
-      // const verifyResponse = await axios.post(`${API_BASE_URL}/payments/verify-payment`, {
-      //   razorpayPaymentId: response.razorpay_payment_id,
-      //   razorpaySubscriptionId: response.razorpay_subscription_id,
-      //   razorpaySignature: response.razorpay_signature,
-      //   companyName,
-      //   email,
-      //   phone,
-      //   userCount: planDetails.userCount,
-      //   billingCycle: planDetails.interval
-      // });
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      setIsSuccess(true);
-      
-      // Redirect to dashboard/setup after a delay
-      setTimeout(() => {
-        navigate('/setup', { 
-          state: { 
-            subscriptionActive: true,
-            companyName,
-            email,
-            userCount: planDetails.userCount
-          } 
-        });
-      }, 2000);
-    } catch (err) {
-      console.error('Error verifying payment:', err);
-      setError('Payment verification failed. Please contact support.');
-    } finally {
+      console.error('Error initializing payment:', err);
+      setError(err.message || 'Failed to initialize payment. Please try again.');
       setIsLoading(false);
     }
   };
@@ -427,7 +400,7 @@ const PaymentPage = ({ navigate, location }) => {
                   {planDetails.interval === 'yearly' && (
                     <div className="flex justify-between text-sm mt-2 text-green-600 dark:text-green-400">
                       <span>Annual Discount (20%)</span>
-                      <span>-${Math.round(planDetails.price * 12 * 0.2)}</span>
+                      <span>-${Math.round(priceDetails.baseMonthlyPrice * 12 * 0.2)}</span>
                     </div>
                   )}
                 </div>
@@ -468,13 +441,15 @@ const PaymentPage = ({ navigate, location }) => {
                   </div>
                 )}
                 
-                {/* Security Note */}
-                <div className="mt-6 flex items-center text-sm text-gray-500 dark:text-gray-400">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 mr-2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-                  </svg>
-                  Secure payment processing by Razorpay
-                </div>
+                {/* Payment Info */}
+                {planDetails.planType !== 'trial' && (
+                  <div className="mt-6 flex items-center text-sm text-gray-500 dark:text-gray-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 mr-2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                    </svg>
+                    Secure payment processing by Razorpay
+                  </div>
+                )}
               </div>
             </div>
           </div>

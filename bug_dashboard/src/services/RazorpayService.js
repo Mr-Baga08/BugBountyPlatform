@@ -2,12 +2,10 @@
 import axios from 'axios';
 import API_BASE_URL from '../assets/Componets/AdminDashboard/config';
 
-// Razorpay API credentials
-const RAZORPAY_KEY_ID = "rzp_live_JCExPjTteNgBfp";
-const SUBSCRIPTION_PLAN_ID = "plan_QDS07pURG8tCkM";
-
 /**
  * RazorpayService - Handles Razorpay payment integration
+ * Note: API keys should be handled on the server-side only,
+ * frontend is only responsible for opening the payment modal
  */
 class RazorpayService {
   /**
@@ -36,7 +34,6 @@ class RazorpayService {
   static async createSubscriptionOrder(orderData) {
     try {
       const response = await axios.post(`${API_BASE_URL}/payments/create-subscription`, {
-        planId: SUBSCRIPTION_PLAN_ID,
         interval: orderData.interval,
         userCount: orderData.userCount,
         companyName: orderData.companyName,
@@ -69,7 +66,7 @@ class RazorpayService {
     
     try {
       const options = {
-        key: RAZORPAY_KEY_ID,
+        key: orderData.keyId, // Key should be provided by backend
         subscription_id: orderData.subscriptionId,
         name: "Astraeus Next Gen BugHuntPlatform",
         description: `Enterprise Plan - ${customerData.userCount} users (${customerData.interval})`,
@@ -190,6 +187,48 @@ class RazorpayService {
       console.error('Error updating user count:', error);
       throw new Error(error.response?.data?.message || 'Failed to update user count');
     }
+  }
+  
+  /**
+   * Calculate the price based on user count and billing cycle
+   * @param {number} userCount - Number of users
+   * @param {string} billingCycle - 'monthly' or 'yearly'
+   * @returns {Object} - Price details with base price, total, and savings
+   */
+  static calculatePrice(userCount, billingCycle) {
+    // Base price for the first 20 users
+    let basePrice = 99;
+    
+    // Additional cost for each block of 20 users beyond the first 20
+    if (userCount > 20) {
+      const additionalGroups = Math.ceil((userCount - 20) / 20);
+      basePrice += additionalGroups * 25;
+    }
+    
+    let finalPrice = basePrice;
+    let savings = 0;
+    
+    // Apply discount for yearly billing
+    if (billingCycle === 'yearly') {
+      savings = Math.round(basePrice * 12 * 0.2); // 20% discount
+      finalPrice = Math.round(basePrice * 0.8); // Discounted monthly price
+      
+      // For display purposes, we might want to know the annual price too
+      const annualPrice = finalPrice * 12;
+      return {
+        baseMonthlyPrice: basePrice,
+        monthlyPrice: finalPrice,
+        annualPrice: annualPrice,
+        savings: savings
+      };
+    }
+    
+    return {
+      baseMonthlyPrice: basePrice,
+      monthlyPrice: finalPrice,
+      annualPrice: finalPrice * 12,
+      savings: 0
+    };
   }
 }
 
