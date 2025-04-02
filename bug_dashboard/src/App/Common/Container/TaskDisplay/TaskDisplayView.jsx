@@ -11,13 +11,19 @@ export default function TaskDisplayView({ title, role }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [status, setStatus] = useState("All");
   const [industry, setIndustry] = useState("All");
+  const [projectName, setProjectName] = useState("All");
+  const [taskId, setTaskId] = useState("All");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [updatedBy, setUpdatedBy] = useState("All");
   const navigate = useNavigate();
   const [tasks, setTasks] = useState([]);
   const [filteredTasks, setFilteredTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [industries, setIndustries] = useState([]);
+  const [projectNames, setProjectNames] = useState([]);
+  const [uniqueTaskIds, setUniqueTaskIds] = useState([]);
+  const [uniqueUpdatedBy, setUniqueUpdatedBy] = useState([]);
 
   // Column parameters based on role
   const [columns, setColumns] = useState([
@@ -30,8 +36,8 @@ export default function TaskDisplayView({ title, role }) {
     "Updated By",
   ]);
 
-  // Toggle dark mode
-  const toggleDarkMode = () => {
+   // Toggle dark mode
+   const toggleDarkMode = () => {
     const newMode = !isDarkMode;
     setIsDarkMode(newMode);
     localStorage.setItem("darkMode", newMode);
@@ -42,21 +48,21 @@ export default function TaskDisplayView({ title, role }) {
     }
   };
 
-  // Handle tool/task click
-  const handleToolClick = (taskId, projectTask) => {
-    // For Hunter role, navigate to the hunter tool page
-    if (role === "hunter") {
-      navigate(`/tool/${taskId}`, { state: projectTask });
-    } 
-    // For Coach role, navigate to coach review page
-    else if (role === "coach") {
-      navigate(`/coach/review/${taskId}`, { state: projectTask });
-    } 
-    // For Admin role, navigate to admin review page
-    else if (role === "admin") {
-      navigate(`/admin/review/${taskId}`, { state: projectTask });
-    }
-  };
+    // Handle tool/task click
+    const handleToolClick = (taskId, projectTask) => {
+      // For Hunter role, navigate to the hunter tool page
+      if (role === "hunter") {
+        navigate(`/tool/${taskId}`, { state: projectTask });
+      } 
+      // For Coach role, navigate to coach review page
+      else if (role === "coach") {
+        navigate(`/coach/review/${taskId}`, { state: projectTask });
+      } 
+      // For Admin role, navigate to admin review page
+      else if (role === "admin") {
+        navigate(`/admin/review/${taskId}`, { state: projectTask });
+      }
+    };
 
   // Handle task detail click
   const handleTaskClick = (taskId) => {
@@ -88,9 +94,21 @@ export default function TaskDisplayView({ title, role }) {
         setTasks(data);
         setFilteredTasks(data);
 
-        // Extract unique industries for filter dropdown
+        // Extract unique industries for filter
         const uniqueIndustries = [...new Set(data.map(task => task.industry))];
         setIndustries(uniqueIndustries);
+
+        // Extract unique project names
+        const uniqueProjectNames = [...new Set(data.map(task => task.projectName))];
+        setProjectNames(uniqueProjectNames);
+
+        // Extract unique task IDs
+        const uniqueTaskIds = [...new Set(data.map(task => task.taskId))];
+        setUniqueTaskIds(uniqueTaskIds);
+
+        // Extract unique updatedBy values
+        const uniqueUpdatedByValues = [...new Set(data.map(task => task.updatedBy))];
+        setUniqueUpdatedBy(uniqueUpdatedByValues);
       } catch (error) {
         console.error("Error fetching tasks:", error);
         setTasks([]);
@@ -126,6 +144,21 @@ export default function TaskDisplayView({ title, role }) {
       filtered = filtered.filter(task => task.industry === industry);
     }
 
+    // Apply updated by filter
+    if (updatedBy !== "All") {
+      filtered = filtered.filter(task => task.updatedBy === updatedBy);
+    }
+
+    // Apply task ID filter
+    if (taskId !== "All") {
+      filtered = filtered.filter(task => task.taskId === taskId);
+    }
+
+    // Apply project name filter
+    if (projectName !== "All") {
+      filtered = filtered.filter(task => task.projectName === projectName);
+    }
+
     // Apply search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
@@ -146,7 +179,7 @@ export default function TaskDisplayView({ title, role }) {
     }
 
     setFilteredTasks(filtered);
-  }, [searchQuery, status, industry, startDate, endDate, tasks]);
+  }, [searchQuery, status, industry, projectName, taskId, updatedBy, startDate, endDate, tasks]);
 
   // Handle status change for a task
   const handleStatusChange = async (newStatus, taskId) => {
@@ -250,13 +283,51 @@ export default function TaskDisplayView({ title, role }) {
                 ))}
               </select>
 
-              {/* Placeholder for third filter or action button */}
-              <div></div>
+              {/* Project Name Filter */}
+              <select
+                className="border border-gray-300 dark:border-gray-600 p-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors duration-200"
+                value={projectName}
+                onChange={(e) => setProjectName(e.target.value)}
+              >
+                <option value="All">All Project Names</option>
+                {projectNames.map((name) => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
+
+              {/* Task ID Filter */}
+              <select
+                className="border border-gray-300 dark:border-gray-600 p-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors duration-200"
+                value={taskId}
+                onChange={(e) => setTaskId(e.target.value)}
+              >
+                <option value="All">All Task IDs</option>
+                {uniqueTaskIds.map((id) => (
+                  <option key={id} value={id}>{id}</option>
+                ))}
+              </select>
             </div>
 
-            {/* Date Filters */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            {/* Updated By and Date Filters */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              {/* Updated By Filter */}
               <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Updated By</label>
+                <select
+                  className="border border-gray-300 dark:border-gray-600 p-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors duration-200"
+                  value={updatedBy}
+                  onChange={(e) => setUpdatedBy(e.target.value)}
+                >
+                  <option value="All">All Users</option>
+                  {uniqueUpdatedBy.map((user) => (
+                    <option key={user} value={user}>{user}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Date Range Filters */}
+              <div>
+                
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date</label>
                 <input
                   type="date"

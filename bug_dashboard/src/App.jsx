@@ -1,4 +1,4 @@
-// Update this code in bug_dashboard/src/App.jsx to include the new routes
+// bug_dashboard/src/App.jsx
 import { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import Login from "./assets/Componets/LoginPage/login";
@@ -17,6 +17,11 @@ import AdminLogin from "./assets/Componets/AdminAuth/login.jsx";
 import AdminRegister from "./assets/Componets/AdminAuth/register.jsx";
 import CoachReviewComponent from "./assets/Componets/CoachReviewComponent";
 import AdminReviewComponent from "./assets/Componets/AdminReviewComponent";
+
+// Import new payment-related components
+import PricingPageWrapper from "./assets/Componets/Payment/PricingPageWrapper";
+import PaymentPageWrapper from "./assets/Componets/Payment/PaymentPageWrapper";
+import CompanySetupWrapper from "./assets/Componets/Payment/CompanySetupWrapper";
 
 function App() {
   const [userRole, setUserRole] = useState(localStorage.getItem("userRole"));
@@ -39,11 +44,16 @@ function App() {
         <Route path="/tool/:taskId" element={<Tool/>} />
         <Route path="/task/:taskId" element={<Protected><TaskDetail /></Protected>} />
         
-        {/* New Routes for Task Workflow */}
+        {/* New Routes for Payment System */}
+        <Route path="/pricing" element={<PricingPageWrapper />} />
+        <Route path="/payment" element={<PaymentPageWrapper />} />
+        <Route path="/setup" element={<CompanySetupWrapper />} />
+        
+        {/* Routes for Task Workflow */}
         <Route path="/coach/review/:taskId" element={<Protected><CoachReviewComponent /></Protected>} />
         <Route path="/admin/review/:taskId" element={<Protected><AdminReviewComponent /></Protected>} />
         
-        {/* Legacy routes - consider updating these to use new components */}
+        {/* Legacy routes */}
         <Route path="/tool-coach/:taskId" element={<CoachView userRole={"coach"}/>} />
         <Route path="/tool-admin/:taskId" element={<CoachView userRole={"admin"}/>} />
         <Route path="/Leaderboard" element={<Leaderboard />} />

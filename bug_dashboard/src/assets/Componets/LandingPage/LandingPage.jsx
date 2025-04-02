@@ -44,10 +44,11 @@ const LandingPage = ({ navigate }) => {
               Sign In
             </button>
             <button 
-              onClick={() => navigate('/login')}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-300"
+              onClick={() => navigate('/pricing')}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center transition-all duration-300 hover:translate-x-1"
             >
-              Register
+              Get Started
+              <FaArrowRight className="ml-2" />
             </button>
           </div>
         </div>
@@ -64,13 +65,13 @@ const LandingPage = ({ navigate }) => {
               A powerful platform for security professionals to document, track, and collaborate on security testing tasks.
             </p>
             <div className="flex space-x-4">
-              <button 
-                onClick={() => navigate('/login')}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center transition-all duration-300 hover:translate-x-1"
-              >
-                Get Started
-                <FaArrowRight className="ml-2" />
-              </button>
+            <button 
+              onClick={() => navigate('/pricing')}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center transition-all duration-300 hover:translate-x-1"
+            >
+              Get Started
+              <FaArrowRight className="ml-2" />
+            </button>
               <button className="px-6 py-3 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:border-gray-500 dark:hover:border-gray-500 transition-colors duration-300">
                 Learn More
               </button>
@@ -132,8 +133,8 @@ const LandingPage = ({ navigate }) => {
             Join our platform today and start managing your security testing workflow more efficiently.
           </p>
           <button 
-            onClick={() => navigate('/login')}
-            className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-300"
+            onClick={() => navigate('/pricing')}
+            className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-300"
           >
             Get Started Now
           </button>

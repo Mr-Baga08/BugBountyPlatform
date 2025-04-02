@@ -1,4 +1,4 @@
-// bug_dashboard/src/assets/Componets/Tool/tool.jsx
+// Enhanced SecurityTestingDashboard with improved script selection
 import React, { useState, useEffect } from "react";
 import { useLocation, useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -31,6 +31,10 @@ const SecurityTestingDashboard = () => {
   const [allScripts, setAllScripts] = useState([]);
   const [selectedScript, setSelectedScript] = useState(null);
   const [uploadedScripts, setUploadedScripts] = useState([]);
+  
+  // Script selection mode
+  const [scriptInputMode, setScriptInputMode] = useState('existing'); // 'existing' or 'new'
+  const [customScript, setCustomScript] = useState(null);
   
   // Form fields for script upload
   const [scriptName, setScriptName] = useState("");
@@ -266,12 +270,7 @@ const SecurityTestingDashboard = () => {
       return;
     }
 
-    if (!selectedScript || !selectedScript._id) {
-      alert("Please select a script");
-      return;
-    }
-
-    const formData = new FormData();
+    // Check for required files
     if (!file) {
       alert("Please select a script file"); 
       return;
@@ -280,8 +279,28 @@ const SecurityTestingDashboard = () => {
       alert("Please select supporting files"); 
       return;
     }
+
+    // Check for selected or custom script
+    if (!selectedScript) {
+      alert("Please select or create a script");
+      return;
+    }
+
+    const formData = new FormData();
     
-    formData.append("scriptId", selectedScript._id);
+    // Handle either existing script or custom script
+    if (scriptInputMode === 'existing') {
+      // Using an existing script from dropdown
+      formData.append("scriptId", selectedScript._id);
+    } else {
+      // Using a custom script
+      formData.append("scriptName", selectedScript.activity);
+      formData.append("scriptCategory", selectedScript.category);
+      formData.append("scriptDescription", selectedScript.tools_technique || '');
+      // Create a new script on the backend and get the ID
+      // The backend will need to handle this case
+    }
+
     formData.append("scriptFile", file);
     formData.append("observedBehavior", observedBehavior);
     formData.append("vulnerabilities", vulnerabilities);
@@ -299,6 +318,19 @@ const SecurityTestingDashboard = () => {
       );
 
       console.log("Response:", response.data);
+      
+      // If we used a custom script, add it to the uploaded scripts
+      if (scriptInputMode === 'new' && customScript) {
+        const newUploadedScript = {
+          id: Date.now().toString(),
+          name: customScript.activity,
+          file: file.name,
+          description: customScript.tools_technique || '',
+          category: customScript.category
+        };
+        
+        setUploadedScripts([...uploadedScripts, newUploadedScript]);
+      }
       
       // Send email notification to coach about review submission
       try {
@@ -334,6 +366,9 @@ const SecurityTestingDashboard = () => {
       setVulnerabilities("");
       setFile(null);
       setSupportingFiles(null);
+      setSelectedScript(null);
+      setCustomScript(null);
+      setScriptInputMode('existing');
       
       // Reset file input fields by clearing their values
       document.getElementById('scriptFile').value = '';
@@ -498,6 +533,119 @@ const SecurityTestingDashboard = () => {
               </div>
             </div>
           )}
+        </div>
+      )}
+      
+      {/* Resources Tab Content */}
+      {activeTab === 'resources' && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Security Resources</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-3">Security References</h3>
+              <ul className="space-y-3">
+                {resources.map((resource, index) => (
+                  <li key={index} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                    <h4 className="font-medium text-gray-900 dark:text-white mb-1">{resource.title}</h4>
+                    <a 
+                      href={resource.url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-600 dark:text-blue-400 hover:underline flex items-center text-sm"
+                    >
+                      <ExternalLink className="h-3 w-3 mr-1" />
+                      Visit Resource
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-3">Project-Specific Resources</h3>
+              <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                <h4 className="font-medium text-gray-900 dark:text-white mb-2">Project Details</h4>
+                <ul className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
+                  <li><strong>Industry:</strong> {task.industry}</li>
+                  {task.Batch && <li><strong>Batch:</strong> {task.Batch}</li>}
+                  {task.toolLink && (
+                    <li>
+                      <strong>Tool Link:</strong>{" "}
+                      <a
+                        href={task.toolLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 dark:text-blue-400 hover:underline"
+                      >
+                        View Tool
+                      </a>
+                    </li>
+                  )}
+                </ul>
+                
+                <h4 className="font-medium text-gray-900 dark:text-white mt-4 mb-2">Testing Guidelines</h4>
+                <div className="text-sm text-gray-700 dark:text-gray-300">
+                  <p>This testing assignment requires careful analysis of the target system for security vulnerabilities. Focus on:</p>
+                  <ul className="list-disc ml-5 mt-2 space-y-1">
+                    <li>Authentication mechanisms</li>
+                    <li>Authorization controls</li>
+                    <li>Input validation</li>
+                    <li>Session management</li>
+                    <li>Data protection</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Help & Resources Tab Content */}
+      {activeTab === 'help' && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Help & Documentation</h2>
+          
+          <div className="space-y-6">
+            <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Using the Testing Tool</h3>
+              <div className="text-sm text-gray-700 dark:text-gray-300 space-y-2">
+                <p>This tool helps you organize and submit your security testing findings. Follow these steps:</p>
+                <ol className="list-decimal ml-5 space-y-1">
+                  <li>Upload your testing scripts and files</li>
+                  <li>Document your findings in the review section</li>
+                  <li>Provide supporting evidence (screenshots, logs, etc.)</li>
+                  <li>Submit a comprehensive final report</li>
+                </ol>
+              </div>
+            </div>
+            
+            <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">FAQ</h3>
+              <div className="space-y-3">
+                <div>
+                  <h4 className="font-medium text-gray-900 dark:text-white">How many reviews can I submit?</h4>
+                  <p className="text-sm text-gray-700 dark:text-gray-300">You can submit multiple reviews for a single task. Each review should focus on a specific aspect or vulnerability.</p>
+                </div>
+                <div>
+                  <h4 className="font-medium text-gray-900 dark:text-white">When should I submit the final report?</h4>
+                  <p className="text-sm text-gray-700 dark:text-gray-300">After submitting all your individual reviews, provide a final comprehensive report that summarizes all findings.</p>
+                </div>
+                <div>
+                  <h4 className="font-medium text-gray-900 dark:text-white">Who reviews my submissions?</h4>
+                  <p className="text-sm text-gray-700 dark:text-gray-300">Team Leads (coaches) review your submissions and provide feedback. Administrators make the final approval.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Need More Help?</h3>
+              <div className="text-sm text-gray-700 dark:text-gray-300">
+                <p>If you need additional assistance, contact your Team Lead or Administrator.</p>
+                <p className="mt-2">Email: support@bughuntplatform.com</p>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -765,19 +913,196 @@ const SecurityTestingDashboard = () => {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Select Test Script
                   </label>
-                  <select
-                    className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                    onChange={handleScriptChange}
-                    value={selectedScript?._id || ""}
-                    disabled={!canSubmit}
-                  >
-                    <option value="">-- Select a script --</option>
-                    {allScripts.map((s) => (
-                      <option key={s._id} value={s._id}>
-                        {s.category} - {s.activity}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="space-y-3">
+                    {/* Option Tabs */}
+                    <div className="flex border border-gray-300 dark:border-gray-600 rounded-md overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setScriptInputMode('existing')}
+                        className={`flex-1 py-2 px-4 text-sm font-medium ${
+                          scriptInputMode === 'existing'
+                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                            : 'bg-white text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                        }`}
+                        disabled={!canSubmit}
+                      >
+                        Use Existing Script
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setScriptInputMode('new')}
+                        className={`flex-1 py-2 px-4 text-sm font-medium ${
+                          scriptInputMode === 'new'
+                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                            : 'bg-white text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                        }`}
+                        disabled={!canSubmit}
+                      >
+                        Create New Script
+                      </button>
+                    </div>
+                    
+                    {/* Existing Scripts Dropdown */}
+                    {scriptInputMode === 'existing' && (
+                      <>
+                        {/* First show uploaded scripts if any */}
+                        {uploadedScripts.length > 0 ? (
+                          <select
+                            className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                            onChange={(e) => {
+                              const selected = uploadedScripts.find(script => script.id === e.target.value);
+                              if (selected) {
+                                setCustomScript({
+                                  _id: selected.id,
+                                  activity: selected.name,
+                                  category: selected.category,
+                                  tools_technique: selected.description || ''
+                                });
+                                setSelectedScript({
+                                  _id: selected.id,
+                                  activity: selected.name,
+                                  category: selected.category,
+                                  tools_technique: selected.description || ''
+                                });
+                              } else {
+                                setSelectedScript(null);
+                                setCustomScript(null);
+                              }
+                            }}
+                            value={selectedScript?._id || ""}
+                            disabled={!canSubmit}
+                          >
+                            <option value="">-- Select an uploaded script --</option>
+                            {uploadedScripts.map((script) => (
+                              <option key={script.id} value={script.id}>
+                                {script.name} ({script.category})
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          // Show all scripts from database
+                          <select
+                            className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                            onChange={handleScriptChange}
+                            value={selectedScript?._id || ""}
+                            disabled={!canSubmit}
+                          >
+                            <option value="">-- Select a script --</option>
+                            {allScripts.map((s) => (
+                              <option key={s._id} value={s._id}>
+                                {s.category} - {s.activity}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      </>
+                    )}
+                    
+                    {/* New Script Input Fields */}
+                    {scriptInputMode === 'new' && (
+                      <div className="space-y-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-md">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Script Name*
+                          </label>
+                          <input
+                            type="text"
+                            value={customScript?.activity || ''}
+                            onChange={(e) => setCustomScript({
+                              ...customScript,
+                              _id: `custom-${Date.now()}`,
+                              activity: e.target.value
+                            })}
+                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                            placeholder="E.g., SQL Injection Test"
+                            disabled={!canSubmit}
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Category*
+                          </label>
+                          <select
+                            value={customScript?.category || ''}
+                            onChange={(e) => setCustomScript({
+                              ...customScript,
+                              category: e.target.value
+                            })}
+                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                            disabled={!canSubmit}
+                          >
+                            <option value="">Select a category</option>
+                            <option value="Injection">Injection</option>
+                            <option value="Authentication">Authentication</option>
+                            <option value="Authorization">Authorization</option>
+                            <option value="XSS">Cross-site Scripting</option>
+                            <option value="CSRF">Cross-site Request Forgery</option>
+                            <option value="Other">Other</option>
+                          </select>
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Description (Optional)
+                          </label>
+                          <textarea
+                            value={customScript?.tools_technique || ''}
+                            onChange={(e) => setCustomScript({
+                              ...customScript,
+                              tools_technique: e.target.value
+                            })}
+                            rows={3}
+                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                            placeholder="Describe what this script does..."
+                            disabled={!canSubmit}
+                          />
+                        </div>
+                        
+                        <div className="pt-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (customScript?.activity && customScript?.category) {
+                                // Set the custom script as the selected script
+                                setSelectedScript(customScript);
+                              } else {
+                                alert("Please provide both a name and category for the script");
+                              }
+                            }}
+                            className={`w-full py-2 px-4 text-white rounded-md ${
+                              customScript?.activity && customScript?.category
+                                ? 'bg-blue-600 hover:bg-blue-700'
+                                : 'bg-blue-300 cursor-not-allowed'
+                            }`}
+                            disabled={!customScript?.activity || !customScript?.category || !canSubmit}
+                          >
+                            Use This Script
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Selected Script Preview (when one is selected) */}
+                    {selectedScript && (
+                      <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="font-medium text-blue-800 dark:text-blue-300">Selected Script:</h4>
+                            <p className="text-blue-700 dark:text-blue-400">{selectedScript.activity}</p>
+                          </div>
+                          <span className="px-2 py-1 text-xs rounded-full bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-300">
+                            {selectedScript.category}
+                          </span>
+                        </div>
+                        {selectedScript.tools_technique && (
+                          <p className="mt-2 text-sm text-blue-700 dark:text-blue-400">
+                            {selectedScript.tools_technique}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* File Upload - Script */}
@@ -849,11 +1174,11 @@ const SecurityTestingDashboard = () => {
                   <button
                     type="submit"
                     className={`w-full py-2 px-4 rounded-md text-white font-medium ${
-                      canSubmit 
+                      canSubmit && selectedScript
                         ? 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500' 
                         : 'bg-gray-400 cursor-not-allowed'
                     }`}
-                    disabled={!canSubmit}
+                    disabled={!canSubmit || !selectedScript}
                   >
                     Submit Review
                   </button>
@@ -988,120 +1313,7 @@ const SecurityTestingDashboard = () => {
             </div>
           </div>
         </div>
-      )}
-      
-      {/* Resources Tab Content */}
-      {activeTab === 'resources' && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Security Resources</h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-3">Security References</h3>
-              <ul className="space-y-3">
-                {resources.map((resource, index) => (
-                  <li key={index} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                    <h4 className="font-medium text-gray-900 dark:text-white mb-1">{resource.title}</h4>
-                    <a 
-                      href={resource.url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-blue-600 dark:text-blue-400 hover:underline flex items-center text-sm"
-                    >
-                      <ExternalLink className="h-3 w-3 mr-1" />
-                      Visit Resource
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-3">Project-Specific Resources</h3>
-              <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                <h4 className="font-medium text-gray-900 dark:text-white mb-2">Project Details</h4>
-                <ul className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
-                  <li><strong>Industry:</strong> {task.industry}</li>
-                  {task.Batch && <li><strong>Batch:</strong> {task.Batch}</li>}
-                  {task.toolLink && (
-                    <li>
-                      <strong>Tool Link:</strong>{" "}
-                      <a
-                        href={task.toolLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 dark:text-blue-400 hover:underline"
-                      >
-                        View Tool
-                      </a>
-                    </li>
-                  )}
-                </ul>
-                
-                <h4 className="font-medium text-gray-900 dark:text-white mt-4 mb-2">Testing Guidelines</h4>
-                <div className="text-sm text-gray-700 dark:text-gray-300">
-                  <p>This testing assignment requires careful analysis of the target system for security vulnerabilities. Focus on:</p>
-                  <ul className="list-disc ml-5 mt-2 space-y-1">
-                    <li>Authentication mechanisms</li>
-                    <li>Authorization controls</li>
-                    <li>Input validation</li>
-                    <li>Session management</li>
-                    <li>Data protection</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {/* Help & Resources Tab Content */}
-      {activeTab === 'help' && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Help & Documentation</h2>
-          
-          <div className="space-y-6">
-            <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Using the Testing Tool</h3>
-              <div className="text-sm text-gray-700 dark:text-gray-300 space-y-2">
-                <p>This tool helps you organize and submit your security testing findings. Follow these steps:</p>
-                <ol className="list-decimal ml-5 space-y-1">
-                  <li>Upload your testing scripts and files</li>
-                  <li>Document your findings in the review section</li>
-                  <li>Provide supporting evidence (screenshots, logs, etc.)</li>
-                  <li>Submit a comprehensive final report</li>
-                </ol>
-              </div>
-            </div>
-            
-            <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">FAQ</h3>
-              <div className="space-y-3">
-                <div>
-                  <h4 className="font-medium text-gray-900 dark:text-white">How many reviews can I submit?</h4>
-                  <p className="text-sm text-gray-700 dark:text-gray-300">You can submit multiple reviews for a single task. Each review should focus on a specific aspect or vulnerability.</p>
-                </div>
-                <div>
-                  <h4 className="font-medium text-gray-900 dark:text-white">When should I submit the final report?</h4>
-                  <p className="text-sm text-gray-700 dark:text-gray-300">After submitting all your individual reviews, provide a final comprehensive report that summarizes all findings.</p>
-                </div>
-                <div>
-                  <h4 className="font-medium text-gray-900 dark:text-white">Who reviews my submissions?</h4>
-                  <p className="text-sm text-gray-700 dark:text-gray-300">Team Leads (coaches) review your submissions and provide feedback. Administrators make the final approval.</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Need More Help?</h3>
-              <div className="text-sm text-gray-700 dark:text-gray-300">
-                <p>If you need additional assistance, contact your Team Lead or Administrator.</p>
-                <p className="mt-2">Email: support@bughuntplatform.com</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      )};
       
       {/* Standard Scripts Tab Content */}
       {activeTab === 'standards' && (
@@ -1153,3 +1365,5 @@ const SecurityTestingDashboard = () => {
 };
 
 export default SecurityTestingDashboard;
+
+      
