@@ -6,7 +6,8 @@ const PricingPage = ({ navigate }) => {
   const [showFaq, setShowFaq] = useState(false);
   const [activeTab, setActiveTab] = useState('monthly');
   const [userCount, setUserCount] = useState(20);
-  const [totalPrice, setTotalPrice] = useState(99);
+  const [basePrice, setBasePrice] = useState(99); // Store the monthly base price
+  const [totalPrice, setTotalPrice] = useState(99); // This will be the displayed price based on active tab
   const [darkMode, setDarkMode] = useState(localStorage.getItem("darkMode") === "true");
   
   useEffect(() => {
@@ -18,22 +19,35 @@ const PricingPage = ({ navigate }) => {
   }, [darkMode]);
 
   useEffect(() => {
-    // Calculate price based on user count
-    let price = 99; // Base price for first 20 users
+    // Calculate the base monthly price based on user count
+    let monthlyPrice = 99; // Base price for first 20 users
     
     if (userCount > 20) {
       const additionalGroups = Math.ceil((userCount - 20) / 20);
-      price += additionalGroups * 25;
+      monthlyPrice += additionalGroups * 25;
     }
     
-    setTotalPrice(price);
-  }, [userCount]);
+    setBasePrice(monthlyPrice);
+    
+    // Now calculate the final price based on billing interval
+    if (activeTab === 'yearly') {
+      // Apply 20% discount for yearly pricing
+      setTotalPrice(Math.round(monthlyPrice * 0.8));
+    } else {
+      setTotalPrice(monthlyPrice);
+    }
+  }, [userCount, activeTab]);
 
   const handleUserCountChange = (e) => {
     const value = parseInt(e.target.value);
     if (!isNaN(value) && value >= 20) {
       setUserCount(value);
     }
+  };
+  
+  // Calculate the yearly total (for the small text showing annual savings)
+  const getYearlyTotal = () => {
+    return (totalPrice * 12).toFixed(0);
   };
 
   const handlePlanSelect = (planType) => {
@@ -148,7 +162,7 @@ const PricingPage = ({ navigate }) => {
             </div>
             
             <p className="mt-2 text-sm text-blue-200">
-              {activeTab === 'yearly' ? `$${(totalPrice * 12 * 0.8).toFixed(0)} billed annually (20% off)` : ''}
+              {activeTab === 'yearly' ? `$${getYearlyTotal()} billed annually (20% off)` : ''}
             </p>
           </div>
 
@@ -174,6 +188,7 @@ const PricingPage = ({ navigate }) => {
               </div>
               <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                 Price: $99 for first 20 users + $25 for each additional 20 users
+                {activeTab === 'yearly' && " (20% discount applied for yearly billing)"}
               </p>
             </div>
 
