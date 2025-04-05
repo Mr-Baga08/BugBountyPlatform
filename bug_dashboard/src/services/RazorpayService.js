@@ -3,11 +3,13 @@ import axios from 'axios';
 import API_BASE_URL from '../assets/Componets/AdminDashboard/config';
 
 /**
- * RazorpayService - Handles Razorpay payment integration
- * Note: API keys should be handled on the server-side only,
- * frontend is only responsible for opening the payment modal
+ * RazorpayService - Handles Razorpay payment integration for the Bug Hunt Platform
  */
 class RazorpayService {
+  // Razorpay constants - these should ideally come from backend for security
+  static RAZORPAY_KEY_ID = 'rzp_live_JCExPjTteNgBfp';
+  static SUBSCRIPTION_LINK = 'https://rzp.io/rzp/HurwKr0M';
+  
   /**
    * Load the Razorpay script dynamically
    * @returns {Promise} Resolves when script is loaded
@@ -34,6 +36,7 @@ class RazorpayService {
   static async createSubscriptionOrder(orderData) {
     try {
       const response = await axios.post(`${API_BASE_URL}/payments/create-subscription`, {
+        selectedPlan: orderData.selectedPlan,
         interval: orderData.interval,
         userCount: orderData.userCount,
         companyName: orderData.companyName,
@@ -66,10 +69,10 @@ class RazorpayService {
     
     try {
       const options = {
-        key: orderData.keyId, // Key should be provided by backend
+        key: orderData.keyId || this.RAZORPAY_KEY_ID,
         subscription_id: orderData.subscriptionId,
         name: "Astraeus Next Gen BugHuntPlatform",
-        description: `Enterprise Plan - ${customerData.userCount} users (${customerData.interval})`,
+        description: `${customerData.selectedPlan.charAt(0).toUpperCase() + customerData.selectedPlan.slice(1)} Plan - ${customerData.userCount} users (${customerData.interval})`,
         image: "https://your-company-logo.png", // Replace with your company logo
         prefill: {
           name: customerData.companyName,
@@ -79,7 +82,8 @@ class RazorpayService {
         notes: {
           companyName: customerData.companyName,
           userCount: customerData.userCount,
-          billingCycle: customerData.interval
+          billingCycle: customerData.interval,
+          planType: customerData.selectedPlan
         },
         theme: {
           color: "#2563EB"
@@ -121,9 +125,7 @@ class RazorpayService {
         razorpaySignature: paymentData.razorpaySignature,
         companyName: customerData.companyName,
         email: customerData.email,
-        phone: customerData.phone,
-        userCount: customerData.userCount,
-        billingCycle: customerData.interval
+        phone: customerData.phone
       });
       
       return response.data;
@@ -144,7 +146,8 @@ class RazorpayService {
         companyName: trialData.companyName,
         email: trialData.email,
         phone: trialData.phone,
-        userCount: trialData.userCount
+        userCount: trialData.userCount,
+        selectedPlan: trialData.selectedPlan
       });
       
       return response.data;
@@ -161,7 +164,18 @@ class RazorpayService {
    */
   static async getCompanyUsage(companyId) {
     try {
-      const response = await axios.get(`${API_BASE_URL}/payments/company-usage/${companyId}`);
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        throw new Error('Authentication token not found');
+      }
+      
+      const response = await axios.get(`${API_BASE_URL}/payments/company-usage/${companyId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
       return response.data;
     } catch (error) {
       console.error('Error getting company usage:', error);
@@ -177,9 +191,19 @@ class RazorpayService {
    */
   static async updateUserCount(companyId, newUserCount) {
     try {
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        throw new Error('Authentication token not found');
+      }
+      
       const response = await axios.post(`${API_BASE_URL}/payments/update-user-count`, {
         companyId,
         newUserCount
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       });
       
       return response.data;
@@ -190,44 +214,70 @@ class RazorpayService {
   }
   
   /**
-   * Calculate the price based on user count and billing cycle
+   * Calculate the price based on plan type, user count and billing cycle
+   * @param {string} selectedPlan - Plan type ('small', 'medium', 'large')
    * @param {number} userCount - Number of users
    * @param {string} billingCycle - 'monthly' or 'yearly'
    * @returns {Object} - Price details with base price, total, and savings
    */
-  static calculatePrice(userCount, billingCycle) {
-    // Base price for the first 20 users
-    let basePrice = 99;
+  static calculatePrice(planDetails) {
+    const { selectedPlan, userCount, interval } = planDetails;
     
-    // Additional cost for each block of 20 users beyond the first 20
-    if (userCount > 20) {
-      const additionalGroups = Math.ceil((userCount - 20) / 20);
-      basePrice += additionalGroups * 25;
+    // Base prices by plan
+    let basePrice;
+    let baseUsers;
+    
+    switch (selectedPlan) {
+      case 'small':
+        basePrice = 299;
+        baseUsers = 3;
+        break;
+      case 'medium':
+        basePrice = 499;
+        baseUsers = 5;
+        break;
+      case 'large':
+        basePrice = 799;
+        baseUsers = 10;
+        break;
+      default:
+        basePrice = 299;
+        baseUsers = 3;
     }
     
-    let finalPrice = basePrice;
-    let savings = 0;
+    // Calculate additional users cost
+    const additionalUsers = Math.max(0, userCount - baseUsers);
+    const additionalCost = additionalUsers * 69;
     
-    // Apply discount for yearly billing
-    if (billingCycle === 'yearly') {
-      savings = Math.round(basePrice * 12 * 0.2); // 20% discount
-      finalPrice = Math.round(basePrice * 0.8); // Discounted monthly price
+    // Total monthly cost
+    let monthlyCost = basePrice + additionalCost;
+    
+    // Apply yearly discount if applicable
+    if (interval === 'yearly') {
+      // 20% discount
+      const yearlyDiscount = 0.2;
+      const yearlyCost = monthlyCost * 12 * (1 - yearlyDiscount);
       
-      // For display purposes, we might want to know the annual price too
-      const annualPrice = finalPrice * 12;
       return {
-        baseMonthlyPrice: basePrice,
-        monthlyPrice: finalPrice,
-        annualPrice: annualPrice,
-        savings: savings
+        basePrice,
+        baseUsers,
+        additionalUsers,
+        additionalCost,
+        monthlyCost,
+        yearlyDiscount: yearlyDiscount * 100, // As percentage
+        yearlyCost,
+        effectiveMonthlyPrice: yearlyCost / 12,
+        finalPrice: yearlyCost
       };
     }
     
     return {
-      baseMonthlyPrice: basePrice,
-      monthlyPrice: finalPrice,
-      annualPrice: finalPrice * 12,
-      savings: 0
+      basePrice,
+      baseUsers,
+      additionalUsers,
+      additionalCost,
+      monthlyCost,
+      finalPrice: monthlyCost
     };
   }
 }

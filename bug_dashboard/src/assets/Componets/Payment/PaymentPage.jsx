@@ -16,30 +16,19 @@ const PaymentPage = ({ navigate, location }) => {
   // Get plan details from location state
   const planDetails = location?.state || { 
     planType: 'trial',
-    userCount: 20,
-    price: 99,
+    selectedPlan: 'small',
+    userCount: 3,
+    price: 299,
     interval: 'monthly'
   };
   
-  // Calculate price details using our utility function
-  const priceDetails = RazorpayService.calculatePrice(
+  // Calculate price details for display
+  const priceInfo = RazorpayService.calculatePrice(
+    planDetails.selectedPlan || 'small', 
     planDetails.userCount, 
     planDetails.interval
   );
   
-  // Format prices for display
-  const formattedPrice = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0,
-  }).format(priceDetails.monthlyPrice);
-  
-  const formattedAnnualPrice = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0,
-  }).format(priceDetails.annualPrice);
-
   useEffect(() => {
     if (darkMode) {
       document.documentElement.classList.add("dark");
@@ -87,6 +76,7 @@ const PaymentPage = ({ navigate, location }) => {
         companyName,
         email,
         phone,
+        selectedPlan: planDetails.selectedPlan,
         userCount: planDetails.userCount
       };
       
@@ -102,6 +92,7 @@ const PaymentPage = ({ navigate, location }) => {
             companyId: response.companyId,
             companyName,
             email,
+            selectedPlan: planDetails.selectedPlan,
             userCount: planDetails.userCount,
             trialEndDate: response.trialEndDate
           } 
@@ -128,6 +119,7 @@ const PaymentPage = ({ navigate, location }) => {
         companyName,
         email,
         phone,
+        selectedPlan: planDetails.selectedPlan,
         userCount: planDetails.userCount,
         interval: planDetails.interval
       };
@@ -155,6 +147,7 @@ const PaymentPage = ({ navigate, location }) => {
                   companyId: verifyResponse.subscription.companyId,
                   companyName,
                   email,
+                  selectedPlan: planDetails.selectedPlan,
                   userCount: planDetails.userCount
                 } 
               });
@@ -187,6 +180,11 @@ const PaymentPage = ({ navigate, location }) => {
     } else {
       handleSubscriptionPayment();
     }
+  };
+
+  // Format price display with commas for thousands
+  const formatPrice = (price) => {
+    return price.toLocaleString('en-US');
   };
 
   return (
@@ -365,7 +363,9 @@ const PaymentPage = ({ navigate, location }) => {
               <div className="space-y-4">
                 {/* Plan Name */}
                 <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-300">Enterprise Plan</span>
+                  <span className="text-gray-600 dark:text-gray-300">
+                    {planDetails.selectedPlan?.charAt(0).toUpperCase() + planDetails.selectedPlan?.slice(1)} Plan
+                  </span>
                   <span className="font-medium text-gray-900 dark:text-white">
                     {planDetails.userCount} Users
                   </span>
@@ -382,17 +382,25 @@ const PaymentPage = ({ navigate, location }) => {
                 {/* User Price Breakdown */}
                 <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600 dark:text-gray-300">Base Price (20 users)</span>
-                    <span className="text-gray-900 dark:text-white">$99</span>
+                    <span className="text-gray-600 dark:text-gray-300">
+                      Base Price ({priceInfo.includedUsers} users)
+                    </span>
+                    <span className="text-gray-900 dark:text-white">
+                      ${planDetails.interval === 'yearly' 
+                        ? formatPrice(priceInfo.basePrice * 12 * 0.8)
+                        : formatPrice(priceInfo.basePrice)}/{planDetails.interval === 'yearly' ? 'yr' : 'mo'}
+                    </span>
                   </div>
                   
-                  {planDetails.userCount > 20 && (
+                  {priceInfo.additionalUsers > 0 && (
                     <div className="flex justify-between text-sm mt-2">
                       <span className="text-gray-600 dark:text-gray-300">
-                        Additional Users ({planDetails.userCount - 20})
+                        Additional Users ({priceInfo.additionalUsers})
                       </span>
                       <span className="text-gray-900 dark:text-white">
-                        ${Math.ceil((planDetails.userCount - 20) / 20) * 25}
+                        ${planDetails.interval === 'yearly' 
+                          ? formatPrice(priceInfo.additionalCost * 12 * 0.8)
+                          : formatPrice(priceInfo.additionalCost)}/{planDetails.interval === 'yearly' ? 'yr' : 'mo'}
                       </span>
                     </div>
                   )}
@@ -400,7 +408,7 @@ const PaymentPage = ({ navigate, location }) => {
                   {planDetails.interval === 'yearly' && (
                     <div className="flex justify-between text-sm mt-2 text-green-600 dark:text-green-400">
                       <span>Annual Discount (20%)</span>
-                      <span>-${Math.round(priceDetails.baseMonthlyPrice * 12 * 0.2)}</span>
+                      <span>-${formatPrice(priceInfo.yearlySavings)}</span>
                     </div>
                   )}
                 </div>
@@ -410,12 +418,20 @@ const PaymentPage = ({ navigate, location }) => {
                   <div className="flex justify-between">
                     <span className="font-medium text-gray-900 dark:text-white">Total</span>
                     <span className="font-bold text-xl text-gray-900 dark:text-white">
-                      {formattedPrice}
+                      ${planDetails.interval === 'yearly' 
+                        ? formatPrice(priceInfo.yearlyPrice)
+                        : formatPrice(priceInfo.monthlyPrice)}
                       <span className="text-sm font-normal text-gray-600 dark:text-gray-400">
                         /{planDetails.interval === 'yearly' ? 'year' : 'month'}
                       </span>
                     </span>
                   </div>
+                  
+                  {planDetails.interval === 'yearly' && (
+                    <p className="mt-1 text-sm text-green-600 dark:text-green-400 text-right">
+                      (Equivalent to ${formatPrice(priceInfo.effectiveMonthlyPrice)}/month)
+                    </p>
+                  )}
                 </div>
                 
                 {/* Trial Note */}

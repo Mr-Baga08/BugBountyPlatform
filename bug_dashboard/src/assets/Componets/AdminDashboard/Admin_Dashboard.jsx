@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   Users, UserCheck, Shield, ChevronLeft, RefreshCw,
-  FileUp, Grid, PlusCircle, FileText
+  FileUp, Grid, PlusCircle, FileText, CreditCard  
 } from "lucide-react";
 import axios from "axios";
 import TaskDisplayView from "../../../App/Common/Container/TaskDisplay/TaskDisplayView";
@@ -12,6 +12,7 @@ import TaskUploadComponent from "./TaskUploadComponent";
 import Navbar from "../../../App/Common/Container/Appbar/NavBar";
 import API_BASE_URL from "./config";
 import AdminResourceManager from './AdminResourceManager';
+import SubscriptionManagement from './SubscriptionManagement';
 // Remove or comment out the problematic import
 // import TrialExpirationNotice from "../Pricing/TrialExpirationNotice";
 
@@ -180,6 +181,17 @@ export default function AdminBoard() {
                 <FileText className="w-4 h-4 mr-2" />
                 Resources
               </button>
+              <button
+                onClick={() => handleTabChange("subscription")}
+                className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center ${
+                  activeTab === "subscription"
+                    ? "border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400"
+                    : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                } transition-colors duration-300`}
+              >
+                <CreditCard className="w-4 h-4 mr-2" />
+                Subscription
+              </button>
               {activeTab === "approvals" && (
                 <button
                   onClick={refreshPendingUsers}
@@ -189,6 +201,7 @@ export default function AdminBoard() {
                   Refresh
                 </button>
               )}
+
             </nav>
           </div>
         </div>
@@ -200,14 +213,16 @@ export default function AdminBoard() {
           <TaskDisplayView title="" role="admin" />
         ) : activeTab === "createTasks" ? (
           <TaskUploadComponent />
-        ) : (
+        ) : activeTab === "approvals" ? (
           <PendingUserSection 
             pendingUsers={pendingUsers} 
             loading={loading} 
             approveUser={approveUser} 
             rejectUser={rejectUser} 
           />
-        )}
+        ) : activeTab === "subscription" ? (
+          <SubscriptionManagement />
+        ) : null}
       </div>
     </div>
   );

@@ -5,9 +5,9 @@ import { Check, CreditCard, Users, Building, Shield, X, ChevronDown, ChevronUp, 
 const PricingPage = ({ navigate }) => {
   const [showFaq, setShowFaq] = useState(false);
   const [activeTab, setActiveTab] = useState('monthly');
-  const [userCount, setUserCount] = useState(20);
-  const [basePrice, setBasePrice] = useState(99); // Store the monthly base price
-  const [totalPrice, setTotalPrice] = useState(99); // This will be the displayed price based on active tab
+  const [selectedPlan, setSelectedPlan] = useState('small'); // small, medium, enterprise
+  const [userCount, setUserCount] = useState(3);
+  const [totalPrice, setTotalPrice] = useState(299); // This will be the displayed price
   const [darkMode, setDarkMode] = useState(localStorage.getItem("darkMode") === "true");
   
   useEffect(() => {
@@ -19,40 +19,63 @@ const PricingPage = ({ navigate }) => {
   }, [darkMode]);
 
   useEffect(() => {
-    // Calculate the base monthly price based on user count
-    let monthlyPrice = 99; // Base price for first 20 users
-    
-    if (userCount > 20) {
-      const additionalGroups = Math.ceil((userCount - 20) / 20);
-      monthlyPrice += additionalGroups * 25;
+    // Calculate price based on plan and additional users
+    let basePrice = 0;
+    let basePlanUsers = 0;
+    let additionalUserCost = 69;
+
+    // Set base plan details
+    if (selectedPlan === 'small') {
+      basePrice = 299;
+      basePlanUsers = 3;
+    } else if (selectedPlan === 'medium') {
+      basePrice = 499;
+      basePlanUsers = 5;
+    } else if (selectedPlan === 'large') {
+      basePrice = 799;
+      basePlanUsers = 10;
     }
+
+    // Calculate additional users cost
+    const additionalUsers = Math.max(0, userCount - basePlanUsers);
+    const additionalCost = additionalUsers * additionalUserCost;
     
-    setBasePrice(monthlyPrice);
+    // Calculate final price (monthly)
+    let monthlyPrice = basePrice + additionalCost;
     
-    // Now calculate the final price based on billing interval
+    // Set the appropriate price based on billing interval
     if (activeTab === 'yearly') {
-      // Apply 20% discount for yearly pricing
-      setTotalPrice(Math.round(monthlyPrice * 0.8));
+      // Apply 20% discount for yearly pricing and multiply by 12
+      const yearlyPrice = Math.round(monthlyPrice * 0.8 * 12);
+      setTotalPrice(yearlyPrice);
     } else {
       setTotalPrice(monthlyPrice);
     }
-  }, [userCount, activeTab]);
+  }, [userCount, selectedPlan, activeTab]);
 
   const handleUserCountChange = (e) => {
+    let minUsers = 3;
+    if (selectedPlan === 'medium') minUsers = 5;
+    if (selectedPlan === 'large') minUsers = 10;
+
     const value = parseInt(e.target.value);
-    if (!isNaN(value) && value >= 20) {
+    if (!isNaN(value) && value >= minUsers) {
       setUserCount(value);
     }
   };
   
-  // Calculate the yearly total (for the small text showing annual savings)
-  const getYearlyTotal = () => {
-    return (totalPrice * 12).toFixed(0);
+  // Calculate the monthly equivalent for yearly display
+  const getMonthlyEquivalent = () => {
+    if (activeTab === 'yearly') {
+      return (totalPrice / 12).toFixed(0);
+    }
+    return totalPrice;
   };
 
   const handlePlanSelect = (planType) => {
     navigate('/payment', { state: { 
       planType, 
+      selectedPlan,
       userCount, 
       price: totalPrice,
       interval: activeTab
@@ -65,14 +88,28 @@ const PricingPage = ({ navigate }) => {
     localStorage.setItem("darkMode", newMode);
   };
 
+  // Handle plan tier selection
+  const handlePlanTierChange = (plan) => {
+    setSelectedPlan(plan);
+    
+    // Set minimum users based on plan
+    if (plan === 'small' && userCount < 3) {
+      setUserCount(3);
+    } else if (plan === 'medium' && userCount < 5) {
+      setUserCount(5);
+    } else if (plan === 'large' && userCount < 10) {
+      setUserCount(10);
+    }
+  };
+
   const FAQs = [
     {
       question: "What's included in the subscription?",
       answer: "Your subscription includes access to our full bug hunting platform with task management, user role management (admin, coach, hunter), and all security testing features. You'll also receive regular updates and basic support."
     },
     {
-      question: "How does the user count work?",
-      answer: "Your subscription allows for a set number of user accounts across all roles (admin, coach, and security hunter). You can allocate these accounts as needed for your organization. Additional users beyond your plan limit will require an upgrade."
+      question: "How many admin accounts do I get?",
+      answer: "The Small and Medium plans include one admin account. The Large plan includes two admin accounts. For more admin accounts, please contact us for an Enterprise plan."
     },
     {
       question: "Can I change my plan later?",
@@ -149,115 +186,268 @@ const PricingPage = ({ navigate }) => {
         </div>
       </div>
 
-      {/* Pricing Card */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden transition-all duration-300 transform hover:scale-[1.01]">
-          <div className="bg-blue-600 px-6 py-12 text-white text-center">
-            <h2 className="text-3xl font-bold">Enterprise Plan</h2>
-            <p className="mt-4 text-blue-100">Customized for your team size</p>
-            
-            <div className="mt-6 flex justify-center items-baseline">
-              <span className="text-5xl font-extrabold">${totalPrice}</span>
-              <span className="ml-1 text-xl text-blue-200">/{activeTab === 'monthly' ? 'month' : 'year'}</span>
-            </div>
-            
-            <p className="mt-2 text-sm text-blue-200">
-              {activeTab === 'yearly' ? `$${getYearlyTotal()} billed annually (20% off)` : ''}
-            </p>
-          </div>
-
-          <div className="p-6">
-            {/* User Count Selector */}
-            <div className="mb-8">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Number of Users
-              </label>
-              <div className="flex items-center">
-                <input
-                  type="number"
-                  min="20"
-                  step="1"
-                  value={userCount}
-                  onChange={handleUserCountChange}
-                  className="block w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                />
-                <div className="ml-4 text-sm text-gray-500 dark:text-gray-400">
-                  <Users className="h-4 w-4 inline mr-1" />
-                  {userCount <= 20 ? 'Base tier (up to 20 users)' : `${Math.floor((userCount - 1) / 20) + 1} tiers of 20 users each`}
-                </div>
+      {/* Pricing Cards */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {/* Small Plan */}
+          <div className={`bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden transition-all duration-300 transform hover:shadow-lg ${
+            selectedPlan === 'small' ? 'ring-2 ring-blue-500 dark:ring-blue-400' : ''
+          }`}>
+            <div className="p-6">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Small Team</h2>
+              <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">For small security teams</p>
+              
+              <div className="mt-4 flex items-baseline">
+                <span className="text-3xl font-bold text-gray-900 dark:text-white">${activeTab === 'yearly' ? '2,870' : '299'}</span>
+                <span className="ml-1 text-lg text-gray-500 dark:text-gray-400">/{activeTab === 'monthly' ? 'mo' : 'yr'}</span>
               </div>
-              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                Price: $99 for first 20 users + $25 for each additional 20 users
-                {activeTab === 'yearly' && " (20% discount applied for yearly billing)"}
+              
+              <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                {activeTab === 'yearly' ? 'Billed annually (20% savings)' : 'Billed monthly'}
               </p>
-            </div>
-
-            {/* Features */}
-            <div className="space-y-4 mt-8">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white">What's included:</h3>
-              <ul className="space-y-3">
+              {activeTab === 'yearly' && (
+                <p className="text-xs text-gray-500 dark:text-gray-400">Equivalent to $239/mo</p>
+              )}
+              
+              <ul className="mt-6 space-y-3">
                 <li className="flex items-start">
-                  <Check className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
+                  <Check className="h-5 w-5 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
                   <span className="text-gray-600 dark:text-gray-300">
-                    5-day free trial with full access
+                    <strong>3 users</strong> included
                   </span>
                 </li>
                 <li className="flex items-start">
-                  <Check className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
+                  <Check className="h-5 w-5 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
                   <span className="text-gray-600 dark:text-gray-300">
-                    <strong>{userCount}</strong> user accounts (Admin, Coach, Hunter roles)
+                    <strong>1 admin</strong> account
                   </span>
                 </li>
                 <li className="flex items-start">
-                  <Check className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
+                  <Check className="h-5 w-5 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
                   <span className="text-gray-600 dark:text-gray-300">
-                    Unlimited tasks and security testing projects
+                    $69 per additional user
                   </span>
                 </li>
                 <li className="flex items-start">
-                  <Check className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
+                  <Check className="h-5 w-5 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
                   <span className="text-gray-600 dark:text-gray-300">
-                    Comprehensive dashboard and reporting
-                  </span>
-                </li>
-                <li className="flex items-start">
-                  <Check className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
-                  <span className="text-gray-600 dark:text-gray-300">
-                    Resource library and knowledge base access
-                  </span>
-                </li>
-                <li className="flex items-start">
-                  <Check className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
-                  <span className="text-gray-600 dark:text-gray-300">
-                    Email notifications and task management
-                  </span>
-                </li>
-                <li className="flex items-start">
-                  <Check className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
-                  <span className="text-gray-600 dark:text-gray-300">
-                    Leaderboard and performance tracking
+                    All core features
                   </span>
                 </li>
               </ul>
+              
+              <button
+                onClick={() => handlePlanTierChange('small')}
+                className={`mt-6 w-full py-2 px-4 rounded-lg font-medium ${
+                  selectedPlan === 'small'
+                    ? 'bg-blue-600 text-white hover:bg-blue-700'
+                    : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600'
+                } transition-colors duration-300`}
+              >
+                {selectedPlan === 'small' ? 'Selected' : 'Select Plan'}
+              </button>
             </div>
+          </div>
+          
+          {/* Medium Plan */}
+          <div className={`bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden transition-all duration-300 transform hover:shadow-lg ${
+            selectedPlan === 'medium' ? 'ring-2 ring-blue-500 dark:ring-blue-400' : ''
+          }`}>
+            <div className="p-6">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Medium Team</h2>
+              <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">For growing security teams</p>
+              
+              <div className="mt-4 flex items-baseline">
+                <span className="text-3xl font-bold text-gray-900 dark:text-white">${activeTab === 'yearly' ? '4,790' : '499'}</span>
+                <span className="ml-1 text-lg text-gray-500 dark:text-gray-400">/{activeTab === 'monthly' ? 'mo' : 'yr'}</span>
+              </div>
+              
+              <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                {activeTab === 'yearly' ? 'Billed annually (20% savings)' : 'Billed monthly'}
+              </p>
+              {activeTab === 'yearly' && (
+                <p className="text-xs text-gray-500 dark:text-gray-400">Equivalent to $399/mo</p>
+              )}
+              
+              <ul className="mt-6 space-y-3">
+                <li className="flex items-start">
+                  <Check className="h-5 w-5 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
+                  <span className="text-gray-600 dark:text-gray-300">
+                    <strong>5 users</strong> included
+                  </span>
+                </li>
+                <li className="flex items-start">
+                  <Check className="h-5 w-5 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
+                  <span className="text-gray-600 dark:text-gray-300">
+                    <strong>1 admin</strong> account
+                  </span>
+                </li>
+                <li className="flex items-start">
+                  <Check className="h-5 w-5 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
+                  <span className="text-gray-600 dark:text-gray-300">
+                    $69 per additional user
+                  </span>
+                </li>
+                <li className="flex items-start">
+                  <Check className="h-5 w-5 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
+                  <span className="text-gray-600 dark:text-gray-300">
+                    Premium reporting features
+                  </span>
+                </li>
+              </ul>
+              
+              <button
+                onClick={() => handlePlanTierChange('medium')}
+                className={`mt-6 w-full py-2 px-4 rounded-lg font-medium ${
+                  selectedPlan === 'medium'
+                    ? 'bg-blue-600 text-white hover:bg-blue-700'
+                    : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600'
+                } transition-colors duration-300`}
+              >
+                {selectedPlan === 'medium' ? 'Selected' : 'Select Plan'}
+              </button>
+            </div>
+          </div>
+          
+          {/* Large Plan */}
+          <div className={`bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden transition-all duration-300 transform hover:shadow-lg ${
+            selectedPlan === 'large' ? 'ring-2 ring-blue-500 dark:ring-blue-400' : ''
+          }`}>
+            <div className="p-6">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Large Team</h2>
+              <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">For established security teams</p>
+              
+              <div className="mt-4 flex items-baseline">
+                <span className="text-3xl font-bold text-gray-900 dark:text-white">${activeTab === 'yearly' ? '7,670' : '799'}</span>
+                <span className="ml-1 text-lg text-gray-500 dark:text-gray-400">/{activeTab === 'monthly' ? 'mo' : 'yr'}</span>
+              </div>
+              
+              <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                {activeTab === 'yearly' ? 'Billed annually (20% savings)' : 'Billed monthly'}
+              </p>
+              {activeTab === 'yearly' && (
+                <p className="text-xs text-gray-500 dark:text-gray-400">Equivalent to $639/mo</p>
+              )}
+              
+              <ul className="mt-6 space-y-3">
+                <li className="flex items-start">
+                  <Check className="h-5 w-5 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
+                  <span className="text-gray-600 dark:text-gray-300">
+                    <strong>10 users</strong> included
+                  </span>
+                </li>
+                <li className="flex items-start">
+                  <Check className="h-5 w-5 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
+                  <span className="text-gray-600 dark:text-gray-300">
+                    <strong>2 admin</strong> accounts
+                  </span>
+                </li>
+                <li className="flex items-start">
+                  <Check className="h-5 w-5 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
+                  <span className="text-gray-600 dark:text-gray-300">
+                    $69 per additional user
+                  </span>
+                </li>
+                <li className="flex items-start">
+                  <Check className="h-5 w-5 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
+                  <span className="text-gray-600 dark:text-gray-300">
+                    Advanced security analytics
+                  </span>
+                </li>
+              </ul>
+              
+              <button
+                onClick={() => handlePlanTierChange('large')}
+                className={`mt-6 w-full py-2 px-4 rounded-lg font-medium ${
+                  selectedPlan === 'large'
+                    ? 'bg-blue-600 text-white hover:bg-blue-700'
+                    : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600'
+                } transition-colors duration-300`}
+              >
+                {selectedPlan === 'large' ? 'Selected' : 'Select Plan'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
 
-            {/* CTA Buttons */}
-            <div className="mt-12 space-y-4">
-              <button
-                onClick={() => handlePlanSelect('trial')}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 px-8 rounded-lg font-medium transition-colors duration-300 flex items-center justify-center"
-              >
-                <Shield className="h-5 w-5 mr-2" />
-                Start 5-Day Free Trial
-              </button>
-              <button
-                onClick={() => handlePlanSelect('subscribe')}
-                className="w-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 py-4 px-8 rounded-lg font-medium transition-colors duration-300 flex items-center justify-center"
-              >
-                <CreditCard className="h-5 w-5 mr-2" />
-                Subscribe Now (Skip Trial)
-              </button>
+      {/* Customize User Count */}
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Customize Your Plan</h2>
+          
+          {/* User Count Selector */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Number of Users
+            </label>
+            <div className="flex items-center">
+              <input
+                type="number"
+                min={selectedPlan === 'small' ? 3 : selectedPlan === 'medium' ? 5 : 10}
+                step="1"
+                value={userCount}
+                onChange={handleUserCountChange}
+                className="block w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              />
+              <div className="ml-4 text-sm text-gray-500 dark:text-gray-400">
+                <Users className="h-4 w-4 inline mr-1" />
+                {selectedPlan === 'small' 
+                  ? `${Math.max(0, userCount - 3)} additional users (base plan: 3 users)`
+                  : selectedPlan === 'medium'
+                    ? `${Math.max(0, userCount - 5)} additional users (base plan: 5 users)`
+                    : `${Math.max(0, userCount - 10)} additional users (base plan: 10 users)`
+                }
+              </div>
             </div>
+            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+              {activeTab === 'monthly' ? (
+                <>
+                  Base price: ${selectedPlan === 'small' ? '299' : selectedPlan === 'medium' ? '499' : '799'}/month + 
+                  ${Math.max(0, userCount - (selectedPlan === 'small' ? 3 : selectedPlan === 'medium' ? 5 : 10)) * 69}/month for additional users
+                </>
+              ) : (
+                <>
+                  Base price: ${(selectedPlan === 'small' ? 299 : selectedPlan === 'medium' ? 499 : 799) * 12 * 0.8}/year + 
+                  ${Math.max(0, userCount - (selectedPlan === 'small' ? 3 : selectedPlan === 'medium' ? 5 : 10)) * 69 * 12 * 0.8}/year for additional users
+                  {" (20% discount applied for yearly billing)"}
+                </>
+              )}
+            </p>
+          </div>
+          
+          {/* Total Price */}
+          <div className="bg-gray-50 dark:bg-gray-700/70 p-4 rounded-lg">
+            <div className="flex justify-between items-center">
+              <span className="text-lg font-medium text-gray-700 dark:text-gray-300">Total Price:</span>
+              <div className="text-right">
+                <span className="text-2xl font-bold text-gray-900 dark:text-white">${totalPrice}</span>
+                <span className="text-gray-600 dark:text-gray-400 ml-1">/{activeTab === 'monthly' ? 'month' : 'year'}</span>
+                {activeTab === 'yearly' && (
+                  <div className="text-sm text-green-600 dark:text-green-400 mt-1">
+                    20% discount applied
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+          
+          {/* CTA Buttons */}
+          <div className="mt-8 space-y-4">
+            <button
+              onClick={() => handlePlanSelect('trial')}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 px-8 rounded-lg font-medium transition-colors duration-300 flex items-center justify-center"
+            >
+              <Shield className="h-5 w-5 mr-2" />
+              Start 5-Day Free Trial
+            </button>
+            <button
+              onClick={() => handlePlanSelect('subscribe')}
+              className="w-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 py-4 px-8 rounded-lg font-medium transition-colors duration-300 flex items-center justify-center"
+            >
+              <CreditCard className="h-5 w-5 mr-2" />
+              Subscribe Now (Skip Trial)
+            </button>
           </div>
         </div>
       </div>
@@ -266,9 +456,9 @@ const PricingPage = ({ navigate }) => {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
         <div className="bg-gray-100 dark:bg-gray-800 rounded-xl p-8 flex flex-col md:flex-row items-center justify-between">
           <div className="mb-6 md:mb-0 text-center md:text-left">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white">Need a custom plan?</h3>
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white">Need an Enterprise plan?</h3>
             <p className="mt-2 text-gray-600 dark:text-gray-400">
-              Contact our team for special requirements, custom deployments, or high-volume discounts.
+              Contact our team for custom deployment, high-volume needs, or more admin accounts.
             </p>
           </div>
           <button 
